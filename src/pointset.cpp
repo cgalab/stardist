@@ -446,15 +446,15 @@ Input(std::istream &stars_ipe, std::istream &sites_ipe) { //{{{
 
 void
 Input::
-do_sk(std::ostream &os, bool ipe) { //{{{
+do_sk(std::ostream &os, bool write_ipe, std::string skoffset) { //{{{
   SkeletonStructure s( sites.make_surf_input() );
 
   s.initialize(0 /* restrict component */);
   s.wp.advance_to_end();
 
   const SkeletonDCEL &sk = s.get_skeleton();
-  if (ipe) {
-    sk.write_ipe(os, "");
+  if (write_ipe) {
+    sk.write_ipe(os, skoffset);
   } else {
     sk.write_obj(os);
   }

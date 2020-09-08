@@ -65,5 +65,5 @@ class Input {
     SiteSet sites;
   public:
     Input(std::istream &stars_ipe, std::istream &sites_ipe);
-    void do_sk(std::ostream &os, bool ipe);
+    void do_sk(std::ostream &os, bool write_ipe, std::string skoffset);
 };

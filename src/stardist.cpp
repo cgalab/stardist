@@ -15,11 +15,12 @@
 #include "stardist.h"
 #include "pointset.h"
 
-static const char* short_options = "hIv:";
+static const char* short_options = "hIv:O:";
 static struct option long_options[] = {
   { "help"               , no_argument        , 0, 'h'},
   { "ipe"                , no_argument        , 0, 'I'},
   { "verbose"            , optional_argument  , 0, 'v'},
+  { "sk-offset"          , required_argument, 0, 'O'},
   { 0, 0, 0, 0}
 };
 
@@ -29,11 +30,17 @@ usage(const char *progname, int err) {
   FILE *f = err ? stderr : stdout;
 
   fprintf(f, "Usage: %s <STARSET> [<POINTSET> [<OUTPUT>]]\n", progname);
-  fprintf(f,"        --verbose      Be slightly verbose\n");
-  fprintf(f,"        --ipe          Produce an IPE file as output.\n");
+  fprintf(f,"  Options: --verbose      Be slightly verbose\n");
+  fprintf(f,"           --ipe          Produce an IPE file as output.\n");
+  fprintf(f,"           --sk-offset=<offset-spec>  Draw offsets.\n");
   fprintf(f,"\n");
   fprintf(f,"        STARSET  .ipe file -- stars are polygons with their center as an IPE marker\n");
   fprintf(f,"        POINTSET .ipe file -- sites are IPE markers\n");
+  fprintf(f,"\n");
+  fprintf(f,"  offset-spec = <one-block> [ ',' <one-block> [ ',' ... ] ]\n");
+  fprintf(f,"  one-block   = <one-offset> [ '+' <one-offset> [ '+' ... ] ]\n");
+  fprintf(f,"  one-offset  = [<cnt> '*' ] <time>\n");
+  fprintf(f,"  example: '0.01 + 3*0.025, 0.15' or '10 * 0.025'\n");
   exit(err);
 }
 
@@ -44,6 +51,7 @@ main(int argc, char *argv[]) {
 
   bool write_ipe = false;
   unsigned verbose = 0;
+  std::string skoffset;
 
   while (1) {
     int option_index = 0;
@@ -70,6 +78,10 @@ main(int argc, char *argv[]) {
             exit(1);
           }
         }
+        break;
+
+      case 'O':
+        skoffset = std::string(optarg);
         break;
 
       default:
@@ -117,7 +129,7 @@ main(int argc, char *argv[]) {
   }
 
   Input input(*starin, *in);
-  input.do_sk(*out, write_ipe);
+  input.do_sk(*out, write_ipe, skoffset);
   out->flush();
 
   exit(0);
