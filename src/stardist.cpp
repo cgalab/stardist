@@ -42,7 +42,7 @@ main(int argc, char *argv[]) {
   NT dummy1 = NT::getOne();
   NT dummy2 = NT::getZero();
 
-  bool ipe = false;
+  bool write_ipe = false;
   unsigned verbose = 0;
 
   while (1) {
@@ -56,7 +56,7 @@ main(int argc, char *argv[]) {
         break;
 
       case 'I':
-        ipe = true;
+        write_ipe = true;
         break;
 
       case 'v':
@@ -116,11 +116,9 @@ main(int argc, char *argv[]) {
     }
   }
 
-  StarSet stars;
-  stars.load_from_ipe(*starin);
-
-  SiteSet sites(stars);
-  sites.load_from_ipe(*in);
+  Input input(*starin, *in);
+  input.do_sk(*out, write_ipe);
+  out->flush();
 
   exit(0);
 }
