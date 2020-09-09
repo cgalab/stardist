@@ -5,7 +5,7 @@
 #include <CGAL/Delaunay_triangulation_2.h>
 
 #include "BasicInput.h"
-#include "SkeletonStructure.h"
+#include <SkeletonStructure.h>
 
 static std::string
 node2str(const pugi::xml_node& node) { //{{{
@@ -454,7 +454,8 @@ do_sk(std::ostream &os, bool write_ipe, std::string skoffset) { //{{{
 
   const SkeletonDCEL &sk = s.get_skeleton();
   if (write_ipe) {
-    sk.write_ipe(os, skoffset);
+    // sk.write_ipe(os, skoffset);
+    skeleton_write_ipe(os, sk, skoffset);
   } else {
     sk.write_obj(os);
   }
