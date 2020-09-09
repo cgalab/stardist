@@ -57,6 +57,7 @@ class SiteSet {
 
     NT get_closest_distance_squared() const;
     SurfInput make_surf_input() const;
+    const std::vector<Site>& get_sites() const { return sites; };
 };
 
 class Input {
@@ -65,5 +66,5 @@ class Input {
     SiteSet sites;
   public:
     Input(std::istream &stars_ipe, std::istream &sites_ipe);
-    void do_sk(std::ostream &os, bool write_ipe, std::string skoffset);
+    void do_sk(std::ostream &os, bool write_ipe, std::string skoffset) const;
 };

@@ -1,4 +1,5 @@
 #include "stardist.h"
+#include "pointset.h"
 
 #include <SkeletonStructure.h>
 
@@ -11,7 +12,7 @@ write_ipe_segment(std::ostream& os, const Segment_2& s, const std::string &strok
 }
 
 void
-skeleton_write_ipe(std::ostream& os, const SkeletonDCEL& sk, const std::string& offset_spec) {
+skeleton_write_ipe(std::ostream& os, const SkeletonDCEL& sk, const SiteSet& sites, const std::string& offset_spec) {
   const std::string STROKE_INPUT        = "stroke=\"black\" pen=\"heavier\"";
   const std::string STROKE_ARC          = "stroke=\"blue\"";;
   const std::string STROKE_ARC_INTERNAL = "stroke=\"blue\" dash=\"dotted\"";
@@ -32,6 +33,11 @@ skeleton_write_ipe(std::ostream& os, const SkeletonDCEL& sk, const std::string& 
         "  <pen name=\"heavier\" value=\"0.8\"/>\n"
         "  <color name=\"blue\" value=\"0 0 1\"/>\n"
         "  <dashstyle name=\"dotted\" value=\"[1 3] 0\"/>\n"
+        "  <symbol name=\"mark/disk(sx)\" transformations=\"translations\">\n"
+        "    <path fill=\"sym-stroke\">\n"
+        "      0.6 0 0 0.6 0 0 e\n"
+        "    </path>\n"
+        "  </symbol>\n"
         "</ipestyle>\n"
         "<ipestyle name=\"dashstyles\">\n"
         "  <dashstyle name=\"dotted-narrower\" value=\"[0.5 0.5] 0\"/>\n"
@@ -96,6 +102,11 @@ skeleton_write_ipe(std::ostream& os, const SkeletonDCEL& sk, const std::string& 
     assert(arc.type() == typeid(Segment_3));
     const Segment_3& s = boost::get<Segment_3>(arc);
     write_ipe_segment(os, project_plane(s), STROKE_INPUT);
+  }
+  for (const auto& site : sites.get_sites()) {
+    os << "<use name=\"mark/disk(sx)\" pos=\""
+       << CGAL::to_double(site.pos().x()) << " " << CGAL::to_double(site.pos().y())
+       << "\" size=\"normal\" stroke=\"black\"/>";
   }
   os << "</group>\n";
 

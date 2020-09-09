@@ -12,4 +12,5 @@ using Segment_2 = typename Kernel::Segment_2;
 using Vector_2  = typename Kernel::Vector_2;
 
 class SkeletonDCEL;
-void skeleton_write_ipe(std::ostream& os, const SkeletonDCEL& sk, const std::string& offset_spec);
+class SiteSet;
+void skeleton_write_ipe(std::ostream& os, const SkeletonDCEL& sk, const SiteSet& sites, const std::string& offset_spec);

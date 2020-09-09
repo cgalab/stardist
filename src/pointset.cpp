@@ -446,7 +446,7 @@ Input(std::istream &stars_ipe, std::istream &sites_ipe) { //{{{
 
 void
 Input::
-do_sk(std::ostream &os, bool write_ipe, std::string skoffset) { //{{{
+do_sk(std::ostream &os, bool write_ipe, std::string skoffset) const { //{{{
   SkeletonStructure s( sites.make_surf_input() );
 
   s.initialize(0 /* restrict component */);
@@ -455,7 +455,7 @@ do_sk(std::ostream &os, bool write_ipe, std::string skoffset) { //{{{
   const SkeletonDCEL &sk = s.get_skeleton();
   if (write_ipe) {
     // sk.write_ipe(os, skoffset);
-    skeleton_write_ipe(os, sk, skoffset);
+    skeleton_write_ipe(os, sk, sites, skoffset);
   } else {
     sk.write_obj(os);
   }
