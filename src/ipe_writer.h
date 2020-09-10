@@ -15,10 +15,13 @@ class IpeWriter {
   private:
     static void write_segment(std::ostream& os, const Segment_2& s, const std::string &stroke);
     static void write_polygon(std::ostream& os, const std::vector<Point_2>& pts, const std::string &stroke);
+    static void write_polygons(std::ostream& os, const std::vector<std::vector<Point_2>>& polys, const std::string &stroke);
 
     static void write_header(std::ostream& os);
     static void write_footer(std::ostream& os);
     static void write_sites(std::ostream& os, const SiteSet& sites);
+
+    static void write_vd_arrangement_faces(std::ostream& os, const StarVD& vd);
 
   public:
     static void write_skeleton(std::ostream& os, const SkeletonDCEL& sk, const SiteSet& sites, const std::string& offset_spec);

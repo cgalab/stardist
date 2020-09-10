@@ -5,6 +5,8 @@
 #include "vd.h"
 #include <SkeletonStructure.h>
 
+#include <unordered_set>
+
 const std::string IpeWriter::STROKE_INPUT        = "stroke=\"black\" pen=\"heavier\"";
 const std::string IpeWriter::STROKE_ARC          = "stroke=\"blue\"";
 const std::string IpeWriter::STROKE_ARC_INTERNAL = "stroke=\"blue\" dash=\"dotted\"";
@@ -30,6 +32,21 @@ write_polygon(std::ostream& os, const std::vector<Point_2>& pts, const std::stri
       first = false;
     };
     os << "    h\n";
+    os << "  </path>\n";
+} //}}}
+
+void
+IpeWriter::
+write_polygons(std::ostream& os, const std::vector<std::vector<Point_2>>& polys, const std::string &stroke) { //{{{
+    os << "  <path cap=\"1\" " << stroke << ">\n";
+    for (const auto& pts : polys) {
+      bool first = true;
+      for (const auto& p : pts) {
+        os << "    " << CGAL::to_double(p.x()) << " " << CGAL::to_double(p.y()) << " " << (first ? 'm' : 'l') << "\n";
+        first = false;
+      };
+      os << "    h\n";
+    }
     os << "  </path>\n";
 } //}}}
 
@@ -88,6 +105,62 @@ write_sites(std::ostream& os, const SiteSet& sites) { //{{{
     write_polygon(os, vertices, STROKE_INPUT);
   }
   os << "</group>\n";
+} //}}}
+
+void
+IpeWriter::write_vd_arrangement_faces(std::ostream& os, const StarVD& vd) { //{{{
+  using Face_const_handle                       = typename Envelope_diagram_2::Face_const_handle;
+  using Halfedge_const_handle                   = typename Envelope_diagram_2::Halfedge_const_handle;
+  using Halfedge_const_iterator                 = typename Envelope_diagram_2::Halfedge_const_iterator;
+
+  const Envelope_diagram_2& arr = vd.arr();
+
+  std::unordered_set< Halfedge_const_handle > visited;
+  std::unordered_map< int, std::vector< std::vector< Point_2 >> > regions; // Maps site-idx to its ipe polygon(s).
+
+  for (Halfedge_const_iterator eit = arr.halfedges_begin(); eit != arr.halfedges_end(); ++eit) {
+    if (visited.count(eit)) continue;
+
+    Face_const_handle face = eit->face();
+    if (face->number_of_surfaces() == 0) continue;  // outer face or not yet reached if we did not finish.
+    assert(face->number_of_surfaces() == 1);
+    auto& surface = face->surface();
+
+    int site_idx = surface.data().first;
+    std::vector<Point_2> face_pts;
+
+    Halfedge_const_iterator around_face_it = eit;
+    do {
+      visited.insert(around_face_it);
+      face_pts.push_back(around_face_it->target()->point());
+
+      // we could skip over internal edges, but this way
+      // the internal partition is also visible in IPE,
+      // which I like
+      around_face_it = around_face_it->next();
+    } while (around_face_it != eit);
+
+    auto regions_it = regions.find(site_idx);
+    if (regions_it == regions.end()) {
+      std::vector< std::vector< Point_2 >> faces;
+      faces.emplace_back(face_pts);
+
+      auto [_, success] = regions.emplace( std::make_pair(site_idx, faces) );
+      assert(success);
+    } else {
+      regions_it->second.emplace_back(face_pts);
+    }
+  }
+
+  for (const auto& r : regions) {
+    std::stringstream stroke;
+    stroke << "layer=\"faces\" fill=\""
+           << ((double) rand() / (double) RAND_MAX) << " "
+           << ((double) rand() / (double) RAND_MAX) << " "
+           << ((double) rand() / (double) RAND_MAX) << "\"";
+    write_polygons(os, r.second, stroke.str());
+  }
+
 } //}}}
 
 void
@@ -156,12 +229,15 @@ write_vd(std::ostream& os, const StarVD& vd, const SiteSet& sites, const std::st
   const Envelope_diagram_2& diag = vd.arr();
 
   write_header(os);
-  os << "<layer name=\"vdr\" />\n"
+  os << "<layer name=\"vd-boundary\" />\n"
         "<layer name=\"vd0\" />\n"
-        "<layer name=\"vd1\" />\n";
+        "<layer name=\"vd1\" />\n"
+        "<layer name=\"faces\" />\n";
+
+  write_vd_arrangement_faces(os, vd);
 
   std::vector<Segment_2> arcs[2];
-  os << "<group layer=\"vdr\">\n";
+  os << "<group layer=\"vd-boundary\">\n";
   for (auto eit = diag.edges_begin(); eit != diag.edges_end(); ++eit) {
     const Point_2& p1 = eit->source()->point();
     const Point_2& p2 = eit->target()->point();
@@ -178,7 +254,7 @@ write_vd(std::ostream& os, const StarVD& vd, const SiteSet& sites, const std::st
       ++surfaces;
       assert(surfaces == eit->surfaces_end());
 
-      arcs[site_idx_1 == site_idx_2].push_back(s);
+      arcs[site_idx_1 != site_idx_2].push_back(s);
     } else {
       LOG(ERROR) << "Unexpected number of incident surfaces";
       exit(1);
@@ -189,7 +265,7 @@ write_vd(std::ostream& os, const StarVD& vd, const SiteSet& sites, const std::st
   for (unsigned i=0; i<=1; ++i) {
     os << "<group layer=\"vd" << i << "\">\n";
     for (auto s : arcs[i]) {
-      write_segment(os, s, i ? STROKE_ARC_INTERNAL : STROKE_ARC);
+      write_segment(os, s, i ? STROKE_ARC : STROKE_ARC_INTERNAL);
     }
     os << "</group>\n";
   }
