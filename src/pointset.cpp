@@ -4,8 +4,10 @@
 
 #include <CGAL/Delaunay_triangulation_2.h>
 
-#include "BasicInput.h"
+#include <BasicInput.h>
 #include <SkeletonStructure.h>
+#include "vd.h"
+#include "ipe_writer.h"
 
 static std::string
 node2str(const pugi::xml_node& node) { //{{{
@@ -82,20 +84,20 @@ operator*(const Point_2& p) const {
 
 class IpeElement { //{{{
   private:
-    const std::string stroke_;
+    const std::string _stroke;
   protected:
-    IpeMatrix matrix_;
+    IpeMatrix _matrix;
   public:
     IpeElement(const pugi::xml_node& node);
 
-    const std::string& stroke() const { return stroke_; };
-    const IpeMatrix& matrix() const { return matrix_; };
+    const std::string& stroke() const { return _stroke; };
+    const IpeMatrix& matrix() const { return _matrix; };
 };
 
 IpeElement::
 IpeElement(const pugi::xml_node& node)
-  : stroke_(node.attribute("stroke") ? node.attribute("stroke").value() : "")
-  , matrix_(node.attribute("matrix"))
+  : _stroke(node.attribute("stroke") ? node.attribute("stroke").value() : "")
+  , _matrix(node.attribute("matrix"))
 {
   if (!node.attribute("stroke")) {
     LOG(ERROR) << "Error: ipe element has no stroke attribute: " << node2str(node);
@@ -106,10 +108,10 @@ IpeElement(const pugi::xml_node& node)
 
 class IpeMarker : public IpeElement { //{{{
   private:
-    Point_2 pos_;
+    Point_2 _pos;
   public:
     IpeMarker(const pugi::xml_node& node);
-    const Point_2& pos() const { return pos_; };
+    const Point_2& pos() const { return _pos; };
 };
 
 IpeMarker::
@@ -131,7 +133,7 @@ IpeMarker(const pugi::xml_node& node)
     exit(1);
   };
 
-  pos_ = matrix() * Point_2(x,y);
+  _pos = matrix() * Point_2(x,y);
 
   // LOG(INFO) << "got " << CGAL::to_double(pos().x()) << ", " << CGAL::to_double(pos().y()) << " (" << stroke() << ")";
 }
@@ -139,10 +141,10 @@ IpeMarker(const pugi::xml_node& node)
 
 class IpePath : public IpeElement { //{{{
   private:
-    std::vector<Point_2> pts_;
+    std::vector<Point_2> _pts;
   public:
     IpePath(const pugi::xml_node& node);
-    const std::vector<Point_2>& pts() const { return pts_; };
+    const std::vector<Point_2>& pts() const { return _pts; };
 };
 
 IpePath::
@@ -168,7 +170,7 @@ IpePath(const pugi::xml_node& node)
       LOG(ERROR) << "Error: parsing path failed: at '" << ss.str() << "' of " << node2str(node);
       exit(1);
     };
-    if (pts_.size() == 0) {
+    if (_pts.size() == 0) {
       if (t != 'm') {
         LOG(WARNING) << "Path does not start with 'm' marker" << node2str(node);
       }
@@ -177,7 +179,7 @@ IpePath(const pugi::xml_node& node)
         LOG(WARNING) << "Path does not continue with 'l' marker" << node2str(node);
       }
     }
-    pts_.emplace_back(matrix() * Point_2(x,y));
+    _pts.emplace_back(matrix() * Point_2(x,y));
   };
   if (!done) {
     LOG(WARNING) << "Path did not end with 'h' marker: " << node2str(node);
@@ -206,15 +208,15 @@ add_vertex(const Point_2& p) {
 
 // Star {{{
 Star::
-Star(const std::vector<Point_2> p_pts, const Point_2& center) { //{{{
-  if (p_pts.size() < 3) {
+Star(const std::vector<Point_2> pts, const Point_2& center) { //{{{
+  if (pts.size() < 3) {
     LOG(ERROR) << "Too few vertices in star.";
     exit(1);
   }
 
   const Vector_2 c(center - CGAL::ORIGIN);
-  for (const auto &p : p_pts) {
-    pts.emplace_back(p - c);
+  for (const auto &p : pts) {
+    _pts.emplace_back(p - c);
   };
 
   // TODO: check if star-shaped
@@ -223,11 +225,11 @@ Star(const std::vector<Point_2> p_pts, const Point_2& center) { //{{{
 NT
 Star::
 get_max_distance_squared() const { //{{{
-  auto pit = pts.begin();
-  assert (pit != pts.end());
+  auto pit = _pts.begin();
+  assert (pit != _pts.end());
 
   NT max_dist = Vector_2( pit->x(), pit->y() ).squared_length();
-  for (++pit; pit != pts.end(); ++pit) {
+  for (++pit; pit != _pts.end(); ++pit) {
     NT this_dist = Vector_2( pit->x(), pit->y() ).squared_length();
     max_dist = std::max(max_dist, this_dist);
   }
@@ -237,7 +239,7 @@ get_max_distance_squared() const { //{{{
 void
 Star::
 shrink(const NT& scale) { //{{{
-  for (auto &p : pts) {
+  for (auto &p : _pts) {
     p = Point_2(p.x() / scale, p.y() / scale);
   }
 }
@@ -247,21 +249,44 @@ void
 Star::
 add_to_input(SurfInput& si, const Point_2& location) const { //{{{
   Point_2 o(CGAL::ORIGIN);
-  Vector_2 loc_v(location - o);
+  Vector_2 loc_v(location.x(), location.y());
 
   std::vector<int> indices;
-  for (const auto& p : pts) {
+  for (const auto& p : _pts) {
     int idx = si.add_vertex(p + loc_v);
     indices.push_back(idx);
   };
 
-  unsigned prev_idx = pts.size()-1;
-  for (unsigned idx = 0; idx < pts.size(); ++idx) {
-    Line_2 l(pts[prev_idx], pts[idx]);
+  unsigned prev_idx = _pts.size()-1;
+  for (unsigned idx = 0; idx < _pts.size(); ++idx) {
+    Line_2 l(_pts[prev_idx], _pts[idx]);
     NT distance_to_origin_sq = CGAL::squared_distance(o, l);
 
     si.add_edge(indices[prev_idx], indices[idx], CGAL::sqrt(distance_to_origin_sq));
 
+    prev_idx = idx;
+  }
+} //}}}
+
+void
+Star::
+add_to_input(TriangleList& triangles, const Point_2& location, const int site_idx, const NT& max_time) const { //{{{
+  Point_3 center(location.x(), location.y(), NT::getZero());
+
+  std::vector<Point_3> vertices;
+  for (const auto& p : _pts) {
+    Vector_3 pnt_vector(p.x(), p.y(), NT::getOne());
+    vertices.push_back( center + max_time * pnt_vector );
+  };
+
+  unsigned prev_idx = _pts.size()-1;
+  for (unsigned idx = 0; idx < _pts.size(); ++idx) {
+    triangles.push_back(
+      Data_triangle_3(
+        Triangle_3 (center, vertices[prev_idx], vertices[idx]),
+        {site_idx, idx}
+      )
+    );
     prev_idx = idx;
   }
 } //}}}
@@ -358,6 +383,12 @@ add_to_input(SurfInput& si) const { //{{{
   shape().add_to_input(si, pos());
 } //}}}
 
+void
+Site::
+add_to_input(TriangleList& triangles, const int site_idx, const NT& max_time) const { //{{{
+  shape().add_to_input(triangles, pos(), site_idx, max_time);
+} //}}}
+
 //}}}
 
 // SiteSet {{{
@@ -417,6 +448,17 @@ make_surf_input() const { //{{{
   return si;
 } //}}}
 
+TriangleList
+SiteSet::
+make_vd_input(const NT& max_time) const { //{{{
+  TriangleList tl;
+  int idx = 0;
+  for (const auto& s : sites) {
+    s.add_to_input(tl, idx++, max_time);
+  }
+  return tl;
+} //}}}
+
 //}}}
 
 // Input {{{
@@ -444,21 +486,28 @@ Input(std::istream &stars_ipe, std::istream &sites_ipe) { //{{{
   stars.shrink(scale);
 } //}}}
 
-void
+bool
 Input::
-do_sk(std::ostream &os, bool write_ipe, std::string skoffset) const { //{{{
+do_sk(std::ostream &os, std::string skoffset) const { //{{{
   SkeletonStructure s( sites.make_surf_input() );
 
   s.initialize(0 /* restrict component */);
   s.wp.advance_to_end();
 
   const SkeletonDCEL &sk = s.get_skeleton();
-  if (write_ipe) {
-    // sk.write_ipe(os, skoffset);
-    skeleton_write_ipe(os, sk, sites, skoffset);
-  } else {
-    sk.write_obj(os);
-  }
+  IpeWriter().write_skeleton(os, sk, sites, skoffset);
+
+  return true;
+} //}}}
+
+bool
+Input::
+do_vd(std::ostream &os, const NT& max_time, bool auto_height, std::string skoffset) const { //{{{
+  StarVD vd(sites, max_time, auto_height);
+
+  IpeWriter().write_vd(os, vd, sites, skoffset);
+
+  return vd.is_valid();
 } //}}}
 
 // }}}

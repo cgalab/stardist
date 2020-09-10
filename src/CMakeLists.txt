@@ -44,6 +44,7 @@ add_executable(stardist
                   stardist.cpp
 
                   pointset.cpp
+                  vd.cpp
                   ipe_writer.cpp
 
                   easyloggingpp/src/easylogging++.cc

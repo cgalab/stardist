@@ -18,9 +18,11 @@
 static const char* short_options = "hIv:O:";
 static struct option long_options[] = {
   { "help"               , no_argument        , 0, 'h'},
-  { "ipe"                , no_argument        , 0, 'I'},
+  { "vd"                 , no_argument        , 0, 'V'},
   { "verbose"            , optional_argument  , 0, 'v'},
-  { "sk-offset"          , required_argument, 0, 'O'},
+  { "sk-offset"          , required_argument  , 0, 'O'},
+  { "vd-height"          , required_argument  , 0, 'H'},
+  { "vd-no-auto-raise"   , no_argument        , 0, 'N'},
   { 0, 0, 0, 0}
 };
 
@@ -31,8 +33,10 @@ usage(const char *progname, int err) {
 
   fprintf(f, "Usage: %s <STARSET> [<POINTSET> [<OUTPUT>]]\n", progname);
   fprintf(f,"  Options: --verbose      Be slightly verbose\n");
-  fprintf(f,"           --ipe          Produce an IPE file as output.\n");
+  fprintf(f,"           --vd           Make a VD instead of a straight skeleton/SEVD.\n");
   fprintf(f,"           --sk-offset=<offset-spec>  Draw offsets.\n");
+  fprintf(f,"           --vd-height=<HEIGHT>       Extend upwards surfaces up to HEIGHT.\n");
+  fprintf(f,"           --vd-no-auto-raise         Do not automatically increase height.\n");
   fprintf(f,"\n");
   fprintf(f,"        STARSET  .ipe file -- stars are polygons with their center as an IPE marker\n");
   fprintf(f,"        POINTSET .ipe file -- sites are IPE markers\n");
@@ -46,12 +50,11 @@ usage(const char *progname, int err) {
 
 int
 main(int argc, char *argv[]) {
-  NT dummy1 = NT::getOne();
-  NT dummy2 = NT::getZero();
-
-  bool write_ipe = false;
+  bool make_vd = false;
   unsigned verbose = 0;
   std::string skoffset;
+  NT vd_height = 2;
+  bool auto_height = true;
 
   while (1) {
     int option_index = 0;
@@ -63,8 +66,8 @@ main(int argc, char *argv[]) {
         usage(argv[0], 0);
         break;
 
-      case 'I':
-        write_ipe = true;
+      case 'V':
+        make_vd = true;
         break;
 
       case 'v':
@@ -78,6 +81,14 @@ main(int argc, char *argv[]) {
             exit(1);
           }
         }
+        break;
+
+      case 'H':
+        vd_height = NT(optarg);
+        break;
+
+      case 'N':
+        auto_height = false;
         break;
 
       case 'O':
@@ -128,9 +139,14 @@ main(int argc, char *argv[]) {
     }
   }
 
+  bool success;
   Input input(*starin, *in);
-  input.do_sk(*out, write_ipe, skoffset);
+  if (make_vd) {
+    success = input.do_vd(*out, vd_height, auto_height, skoffset);
+  } else {
+    success = input.do_sk(*out, skoffset);
+  }
   out->flush();
 
-  exit(0);
+  exit(success ? 0 : 1);
 }
