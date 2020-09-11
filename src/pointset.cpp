@@ -208,18 +208,28 @@ add_vertex(const Point_2& p) {
 
 // Star {{{
 Star::
-Star(const std::vector<Point_2> pts, const Point_2& center) { //{{{
+Star(const std::vector<Point_2> pts, const Point_2& center, const std::string& stroke) { //{{{
   if (pts.size() < 3) {
-    LOG(ERROR) << "Too few vertices in star.";
+    LOG(ERROR) << "Too few vertices in star " << stroke << ".";
     exit(1);
   }
 
-  const Vector_2 c(center - CGAL::ORIGIN);
+  const Vector_2 c(CGAL::ORIGIN, center);
   for (const auto &p : pts) {
     _pts.emplace_back(p - c);
   };
 
-  // TODO: check if star-shaped
+  Vector_2 prev_dir(CGAL::ORIGIN, _pts.back());
+  for (auto p : _pts) {
+    Vector_2 dir( CGAL::ORIGIN, p);
+
+    auto o = CGAL::orientation(prev_dir, dir);
+    if (o != CGAL::LEFT_TURN) {
+      LOG(ERROR) << "Input shape " << stroke << " is not (strictly) star-shaped.";
+      exit(1);
+    }
+    prev_dir = dir;
+  }
 } //}}}
 
 NT
@@ -324,7 +334,7 @@ load_from_ipe(std::istream &ins) { //{{{
       continue;
     }
     Point_2 center = center_it->second;
-    Star star(p.pts(), center);
+    Star star(p.pts(), center, p.stroke());
     auto [_, success ] = insert( {p.stroke(), star} );
     if (!success) {
       LOG(WARNING) << "Color " << p.stroke() << " has more than one star.";

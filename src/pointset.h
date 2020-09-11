@@ -11,7 +11,7 @@ class Star {
   private:
     std::vector<Point_2> _pts;
   public:
-    Star(const std::vector<Point_2> pts, const Point_2& center);
+    Star(const std::vector<Point_2> pts, const Point_2& center, const std::string& stroke /* for logging/warning purposes only */);
     NT get_max_distance_squared() const;
     const std::vector<Point_2>& pts() const { return _pts; };
     void shrink(const NT& scale);
