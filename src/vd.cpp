@@ -77,7 +77,7 @@ check_sufficiently_far() { //{{{
     };
 
     /* find edge pointing outside */
-    bool found_interior_arc = false;
+    [[maybe_unused]] bool found_interior_arc = false;
     Halfedge_around_vertex_const_circulator ec = vertex->incident_halfedges();
     for (unsigned i=0; i<degree; ++i, ++ec) {
       assert(ec->target() == vertex);

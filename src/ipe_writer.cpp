@@ -145,7 +145,7 @@ IpeWriter::write_vd_arrangement_faces(std::ostream& os, const StarVD& vd) { //{{
       std::vector< std::vector< Point_2 >> faces;
       faces.emplace_back(face_pts);
 
-      auto [_, success] = regions.emplace( std::make_pair(site_idx, faces) );
+      [[maybe_unused]] auto [_, success] = regions.emplace( std::make_pair(site_idx, faces) );
       assert(success);
     } else {
       regions_it->second.emplace_back(face_pts);
