@@ -19,28 +19,26 @@ include( ${CGAL_USE_FILE} )
 
 find_package( pugixml )
 
-if ( NOT VD_ONLY )
-  find_library(SURF_LIBRARY
-      NAMES libsurflib.so libsurflib.a
-      HINTS "${SURF_LIBRARY_PATH}" "${SURF_LIBRARY_PATH}/surf"
-  )
-  find_path(SURF_INCLUDE
-    NAMES surf.h
-    PATHS "${SURF_INCLUDE_PATH}/include" "${SURF_INCLUDE_PATH}/surf/include"
-  )
-  foreach(_var IN ITEMS SURF_LIBRARY SURF_INCLUDE_DIR)
-      get_property(_var_cached CACHE ${_var} PROPERTY VALUE)
-      message(STATUS "CACHED path: ${_var_cached}")
-      message(STATUS "path: ${${_var}}")
-  endforeach()
-  if ( NOT SURF_LIBRARY )
-    message(FATAL_ERROR "surfer library not found.")
-  endif()
-  if ( NOT SURF_INCLUDE )
-    message(FATAL_ERROR "surfer header files not found.")
-  endif()
-  include_directories("${SURF_INCLUDE}" "${SURF_INCLUDE}/../src" "${SURF_LIBRARY_PATH}" "${SURF_LIBRARY_PATH}/..")
+find_library(SURF_LIBRARY
+    NAMES libsurflib.so libsurflib.a
+    HINTS "${SURF_LIBRARY_PATH}" "${SURF_LIBRARY_PATH}/surf"
+)
+find_path(SURF_INCLUDE
+  NAMES surf.h
+  PATHS "${SURF_INCLUDE_PATH}/include" "${SURF_INCLUDE_PATH}/surf/include"
+)
+foreach(_var IN ITEMS SURF_LIBRARY SURF_INCLUDE_DIR)
+    get_property(_var_cached CACHE ${_var} PROPERTY VALUE)
+    message(STATUS "CACHED path: ${_var_cached}")
+    message(STATUS "path: ${${_var}}")
+endforeach()
+if ( NOT SURF_LIBRARY )
+  message(FATAL_ERROR "surfer library not found.")
 endif()
+if ( NOT SURF_INCLUDE )
+  message(FATAL_ERROR "surfer header files not found.")
+endif()
+include_directories("${SURF_INCLUDE}" "${SURF_INCLUDE}/../src" "${SURF_LIBRARY_PATH}" "${SURF_LIBRARY_PATH}/..")
 
 add_executable(stardist
                   stardist.cpp

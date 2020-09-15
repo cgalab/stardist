@@ -12,9 +12,8 @@
 #include <string.h>
 
 #include "stardist.h"
-#ifndef VD_ONLY
 #include <surf.h>
-#endif
+// INITIALIZE_EASYLOGGINGPP  /* done by the surfer library */
 
 #include "pointset.h"
 #include "gitversion.h"
@@ -68,7 +67,7 @@ main(int argc, char *argv[]) {
   bool make_vd = false;
   unsigned verbose = 0;
   std::string skoffset;
-  NT vd_height = 2;
+  RatNT vd_height = 2;
   bool auto_height = true;
 
   while (1) {
@@ -99,7 +98,7 @@ main(int argc, char *argv[]) {
         break;
 
       case 'H':
-        vd_height = NT(optarg);
+        vd_height = string2RatNT(optarg);
         break;
 
       case 'N':
@@ -122,9 +121,6 @@ main(int argc, char *argv[]) {
   LOG(INFO) << "stardist"
             << "; git revision: " << GITVERSION
             << "; CMAKE_BUILD_TYPE: " << STAR_CMAKE_BUILD_TYPE
-#ifdef VD_ONLY
-            << "; VD_ONLY"
-#endif
   ;
 
 

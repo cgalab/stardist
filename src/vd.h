@@ -11,11 +11,11 @@ class StarVD {
 
     bool _is_valid = false;
 
-    NT _max_time;
+    RatNT _max_time;
     const bool _auto_height;
-    NT _new_max_time;
+    RatNT _new_max_time;
   public:
-    StarVD(const SiteSet& sites, const NT& max_time, const bool auto_height);
+    StarVD(const SiteSet& sites, const RatNT& max_time, const bool auto_height);
 
     bool is_valid() const { return _is_valid; };
 

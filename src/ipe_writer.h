@@ -13,9 +13,9 @@ class IpeWriter {
   static const std::string STROKE_UNKNOWN;
 
   private:
-    static void write_segment(std::ostream& os, const Segment_2& s, const std::string &stroke);
-    static void write_polygon(std::ostream& os, const std::vector<Point_2>& pts, const std::string &stroke);
-    static void write_polygons(std::ostream& os, const std::vector<std::vector<Point_2>>& polys, const std::string &stroke);
+    template<typename Segment> static void write_segment(std::ostream& os, const Segment& s, const std::string &stroke);
+    static void write_polygon(std::ostream& os, const std::vector<RatPoint_2>& pts, const std::string &stroke);
+    static void write_polygons(std::ostream& os, const std::vector<std::vector<RatPoint_2>>& polys, const std::string &stroke);
 
     static void write_header(std::ostream& os);
     static void write_footer(std::ostream& os);

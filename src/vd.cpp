@@ -98,11 +98,11 @@ check_sufficiently_far() { //{{{
   bool arcs_colliding = false;
 
   Halfedge_const_handle prev_ray = rays.back();
-  Vector_2              prev_dir( prev_ray->source()->point(), prev_ray->target()->point() );
+  RatVector_2           prev_dir( prev_ray->source()->point(), prev_ray->target()->point() );
   // LOG(INFO) << "ray from " << prev_ray->source()->point()<< " to " << prev_ray->target()->point();
   for (auto ray : rays) {
     // LOG(INFO) << "ray from " << ray->source()->point() << " to " << ray->target()->point();
-    Vector_2 dir( ray->source()->point(), ray->target()->point()) ;
+    RatVector_2 dir( ray->source()->point(), ray->target()->point()) ;
 
     auto o = CGAL::orientation(prev_dir, dir);
     if (o == CGAL::LEFT_TURN) {
@@ -122,10 +122,10 @@ check_sufficiently_far() { //{{{
       assert( ! s21.is_segment() );
       assert( ! s22.is_segment() );
 
-      const Plane_3& p11 = s11.plane();
-      const Plane_3& p12 = s12.plane();
-      const Plane_3& p21 = s21.plane();
-      const Plane_3& p22 = s22.plane();
+      const RatPlane_3& p11 = s11.plane();
+      const RatPlane_3& p12 = s12.plane();
+      const RatPlane_3& p21 = s21.plane();
+      const RatPlane_3& p22 = s22.plane();
 
       assert( p11 != p12 );
       assert( p21 != p22 );
@@ -141,22 +141,22 @@ check_sufficiently_far() { //{{{
       assert( ((p11 == p21) + (p11 == p22) +
                (p12 == p21) + (p12 == p22)) == 1); // exactly one surface in common
 
-      const Plane_3& p1 = p11;
-      const Plane_3& p2 = p12;
-      const Plane_3& p3 = ( p21 == p11 || p21 == p12 ) ? p22 : p21;
+      const RatPlane_3& p1 = p11;
+      const RatPlane_3& p2 = p12;
+      const RatPlane_3& p3 = ( p21 == p11 || p21 == p12 ) ? p22 : p21;
 
       //LOG(INFO) << "  incident plane 1: " << p1;
       //LOG(INFO) << "  incident plane 2: " << p2;
       //LOG(INFO) << "  incident plane 3: " << p3;
 
-      CGAL::cpp11::result_of<Kernel::Intersect_3(Plane_3, Plane_3)>::type res1 = intersection(p1, p2);
+      CGAL::cpp11::result_of<RatKernel::Intersect_3(RatPlane_3, RatPlane_3)>::type res1 = intersection(p1, p2);
       assert(res1);
-      const Line_3* line = boost::get<Line_3>(&*res1);
+      const RatLine_3* line = boost::get<RatLine_3>(&*res1);
       assert(line);
 
-      CGAL::cpp11::result_of<Kernel::Intersect_3(Line_3, Plane_3)>::type res2 = intersection(*line, p3);
+      CGAL::cpp11::result_of<RatKernel::Intersect_3(RatLine_3, RatPlane_3)>::type res2 = intersection(*line, p3);
       assert(res2);
-      const Point_3* pnt = boost::get<Point_3>(&*res2);
+      const RatPoint_3* pnt = boost::get<RatPoint_3>(&*res2);
       assert(pnt);
 
       // LOG(INFO) << "  arcs meet in " << *pnt;
@@ -178,7 +178,7 @@ check_sufficiently_far() { //{{{
 } //}}}
 
 StarVD::
-StarVD(const SiteSet& sites, const NT& max_time, const bool auto_height) //{{{
+StarVD(const SiteSet& sites, const RatNT& max_time, const bool auto_height) //{{{
   : _max_time(max_time)
   , _auto_height(auto_height)
 {
@@ -188,13 +188,14 @@ StarVD(const SiteSet& sites, const NT& max_time, const bool auto_height) //{{{
     LOG(DEBUG) << " computing lower envelope";
     CGAL::lower_envelope_3 (_triangles.begin(), _triangles.end(), _arr);
 
+    LOG(DEBUG) << " verifying";
     _is_valid = check_sufficiently_far();
     if (_is_valid) {
-      LOG(INFO) << "VD looks good with upper height of " << CGAL::to_double(_max_time) << ".";
+      LOG(INFO) << "  VD looks good with upper height of " << CGAL::to_double(_max_time) << ".";
       break;
     }
 
-    LOG(WARNING) << "Triangles too small with height " << CGAL::to_double(_max_time) << ".";
+    LOG(WARNING) << "  Triangles too small with height " << CGAL::to_double(_max_time) << ".";
 
     if (! _auto_height) break;
     assert(_new_max_time > _max_time);

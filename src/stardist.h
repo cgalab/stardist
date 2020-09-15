@@ -1,49 +1,52 @@
 #pragma once
 
-#include <vector>
-
-#include "easyloggingpp/src/easylogging++.h"
-
 #include "../starconfig.h"
 
-#ifdef VD_ONLY
-  #define RATIONAL_NT
-#endif
+//#include <CGAL/Exact_rational.h>
+//using RatNT = CGAL::Exact_rational;
 
-#ifdef RATIONAL_NT
-  #include <CGAL/Exact_rational.h>
-  #include <CGAL/Cartesian.h>
-  using NT = CGAL::Exact_rational;
-  using Kernel  =  CGAL::Cartesian<NT>;
-  // #define NT_CAN_PARSE_DECIMALS
+#include <CGAL/CORE_BigRat.h>
+using RatNT = CORE::BigRat;
 
-  static const NT CORE_ONE =  1;
-  static const NT CORE_ZERO = 0;
-#else
-  #include <CGAL/Exact_predicates_exact_constructions_kernel_with_sqrt.h>
-  using Kernel  = CGAL::Exact_predicates_exact_constructions_kernel_with_sqrt;
-  using NT = Kernel::FT;
- #define NT_CAN_PARSE_DECIMALS
-
-  static const NT& CORE_ONE =  NT::getOne();
-  static const NT& CORE_ZERO = NT::getZero();
-#endif
-
+#include <CGAL/Simple_cartesian.h>
+#include <CGAL/Exact_predicates_exact_constructions_kernel_with_sqrt.h>
 #include <CGAL/Env_triangle_traits_3.h>
 #include <CGAL/Env_surface_data_traits_3.h>
 #include <CGAL/envelope_3.h>
 
-using Line_2             = typename Kernel::Line_2;
-using Point_2            = typename Kernel::Point_2;
-using Segment_2          = typename Kernel::Segment_2;
-using Vector_2           = typename Kernel::Vector_2;
+#include <vector>
 
-using Line_3             = typename Kernel::Line_3;
-using Plane_3            = typename Kernel::Plane_3;
-using Point_3            = typename Kernel::Point_3;
-using Vector_3           = typename Kernel::Vector_3;
+#include "easyloggingpp/src/easylogging++.h"
 
-using Traits_3           = typename CGAL::Env_triangle_traits_3<Kernel>;
+using RatKernel  =  CGAL::Simple_cartesian<RatNT>;
+
+using CoreKernel  = CGAL::Exact_predicates_exact_constructions_kernel_with_sqrt;
+using CoreNT = CoreKernel::FT;
+
+static const CoreNT& Core_ONE =  CoreNT::getOne();
+static const CoreNT& Core_ZERO = CoreNT::getZero();
+
+
+using CorePoint_2        = typename CoreKernel::Point_2;
+using CoreSegment_2      = typename CoreKernel::Segment_2;
+using CoreRay_2          = typename CoreKernel::Ray_2;
+
+using CoreSegment_3      = typename CoreKernel::Segment_3;
+using CoreRay_3          = typename CoreKernel::Ray_3;
+
+
+
+using RatLine_2          = typename RatKernel::Line_2;
+using RatPoint_2         = typename RatKernel::Point_2;
+using RatSegment_2       = typename RatKernel::Segment_2;
+using RatVector_2        = typename RatKernel::Vector_2;
+
+using RatLine_3          = typename RatKernel::Line_3;
+using RatPlane_3         = typename RatKernel::Plane_3;
+using RatPoint_3         = typename RatKernel::Point_3;
+using RatVector_3        = typename RatKernel::Vector_3;
+
+using Traits_3           = typename CGAL::Env_triangle_traits_3<RatKernel>;
 using Triangle_3         = typename Traits_3::Surface_3;
 using Data_traits_3      = typename CGAL::Env_surface_data_traits_3<Traits_3, std::pair<int,int> >;
 using Data_triangle_3    = typename Data_traits_3::Surface_3;
@@ -52,3 +55,8 @@ using Envelope_diagram_2 = typename CGAL::Envelope_diagram_2<Data_traits_3>;
 using TriangleList       = typename std::vector<Data_triangle_3>;
 
 class SiteSet;
+
+inline CorePoint_2
+Rat2Core(const RatPoint_2& p) {
+  return CorePoint_2(p.x(), p.y());
+}

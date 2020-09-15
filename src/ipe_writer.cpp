@@ -4,10 +4,7 @@
 #include "pointset.h"
 #include "vd.h"
 
-#ifndef VD_ONLY
-  #include <SkeletonStructure.h>
-#endif
-
+#include <SkeletonStructure.h>
 #include <unordered_set>
 
 const std::string IpeWriter::STROKE_INPUT        = "stroke=\"black\" pen=\"heavier\"";
@@ -16,9 +13,10 @@ const std::string IpeWriter::STROKE_ARC_INTERNAL = "stroke=\"blue\" dash=\"dotte
 const std::string IpeWriter::STROKE_OFFSET       = "stroke=\"black\" pen=\"thin\" dash=\"dotted-narrower\"";
 const std::string IpeWriter::STROKE_UNKNOWN      = "stroke=\"red\" pen=\"heavier\"";
 
+template<typename Segment>
 void
 IpeWriter::
-write_segment(std::ostream& os, const Segment_2& s, const std::string &stroke) { //{{{
+write_segment(std::ostream& os, const Segment& s, const std::string &stroke) { //{{{
     os << "  <path cap=\"1\" " << stroke << ">\n";
     os << "    " << CGAL::to_double(s.source().x()) << " " << CGAL::to_double(s.source().y()) << " m\n";
     os << "    " << CGAL::to_double(s.target().x()) << " " << CGAL::to_double(s.target().y()) << " l\n";
@@ -27,7 +25,7 @@ write_segment(std::ostream& os, const Segment_2& s, const std::string &stroke) {
 
 void
 IpeWriter::
-write_polygon(std::ostream& os, const std::vector<Point_2>& pts, const std::string &stroke) { //{{{
+write_polygon(std::ostream& os, const std::vector<RatPoint_2>& pts, const std::string &stroke) { //{{{
     bool first = true;
     os << "  <path cap=\"1\" " << stroke << ">\n";
     for (const auto& p : pts) {
@@ -40,7 +38,7 @@ write_polygon(std::ostream& os, const std::vector<Point_2>& pts, const std::stri
 
 void
 IpeWriter::
-write_polygons(std::ostream& os, const std::vector<std::vector<Point_2>>& polys, const std::string &stroke) { //{{{
+write_polygons(std::ostream& os, const std::vector<std::vector<RatPoint_2>>& polys, const std::string &stroke) { //{{{
     os << "  <path cap=\"1\" " << stroke << ">\n";
     for (const auto& pts : polys) {
       bool first = true;
@@ -99,9 +97,9 @@ write_sites(std::ostream& os, const SiteSet& sites) { //{{{
        << "\" size=\"normal\" stroke=\"black\"/>";
 
     const Star& shape = site.shape();
-    Vector_2 site_pos(site.pos().x(), site.pos().y());
+    RatVector_2 site_pos(site.pos().x(), site.pos().y());
 
-    std::vector<Point_2> vertices;
+    std::vector<RatPoint_2> vertices;
     for (const auto& p : shape.pts()) {
       vertices.push_back(p + site_pos);
     };
@@ -119,7 +117,7 @@ IpeWriter::write_vd_arrangement_faces(std::ostream& os, const StarVD& vd) { //{{
   const Envelope_diagram_2& arr = vd.arr();
 
   std::unordered_set< Halfedge_const_handle > visited;
-  std::unordered_map< int, std::vector< std::vector< Point_2 >> > regions; // Maps site-idx to its ipe polygon(s).
+  std::unordered_map< int, std::vector< std::vector< RatPoint_2 >> > regions; // Maps site-idx to its ipe polygon(s).
 
   for (Halfedge_const_iterator eit = arr.halfedges_begin(); eit != arr.halfedges_end(); ++eit) {
     if (visited.count(eit)) continue;
@@ -130,7 +128,7 @@ IpeWriter::write_vd_arrangement_faces(std::ostream& os, const StarVD& vd) { //{{
     auto& surface = face->surface();
 
     int site_idx = surface.data().first;
-    std::vector<Point_2> face_pts;
+    std::vector<RatPoint_2> face_pts;
 
     Halfedge_const_iterator around_face_it = eit;
     do {
@@ -145,7 +143,7 @@ IpeWriter::write_vd_arrangement_faces(std::ostream& os, const StarVD& vd) { //{{
 
     auto regions_it = regions.find(site_idx);
     if (regions_it == regions.end()) {
-      std::vector< std::vector< Point_2 >> faces;
+      std::vector< std::vector< RatPoint_2 >> faces;
       faces.emplace_back(face_pts);
 
       [[maybe_unused]] auto [_, success] = regions.emplace( std::make_pair(site_idx, faces) );
@@ -169,10 +167,9 @@ IpeWriter::write_vd_arrangement_faces(std::ostream& os, const StarVD& vd) { //{{
 void
 IpeWriter::
 write_skeleton(std::ostream& os, const SkeletonDCEL& sk, const SiteSet& sites, const std::string& offset_spec) { //{{{
-#ifndef VD_ONLY
   const int ray_length = 10;
   std::vector<SkeletonDCEL::OffsetFamily> offsets;
-  for (const NT& offset_distance : sk.parse_offset_spec( offset_spec )) {
+  for (const CoreNT& offset_distance : sk.parse_offset_spec( offset_spec )) {
     offsets.emplace_back(sk.make_offset(offset_distance));
   }
   write_header(os);
@@ -208,14 +205,14 @@ write_skeleton(std::ostream& os, const SkeletonDCEL& sk, const SiteSet& sites, c
        */
 
       const auto& arc = hit->curve();
-      if (arc.type() == typeid(Segment_3)) {
-        const Segment_3& s = boost::get<Segment_3>(arc);
+      if (arc.type() == typeid(CoreSegment_3)) {
+        const CoreSegment_3& s = boost::get<CoreSegment_3>(arc);
         write_segment(os, project_plane(s), stroke);
       } else {
-        assert(arc.type() == typeid(Ray_3));
-        const Ray_3& r = boost::get<Ray_3>(arc);
-        const Ray_2 r2 = project_plane(r);
-        const Segment_2 s2(r2.source(), r2.point(ray_length));
+        assert(arc.type() == typeid(CoreRay_3));
+        const CoreRay_3& r = boost::get<CoreRay_3>(arc);
+        const CoreRay_2 r2 = project_plane(r);
+        const CoreSegment_2 s2(r2.source(), r2.point(ray_length));
         write_segment(os, s2, stroke);
       }
     }
@@ -224,7 +221,6 @@ write_skeleton(std::ostream& os, const SkeletonDCEL& sk, const SiteSet& sites, c
 
   write_sites(os, sites);
   write_footer(os);
-#endif
 } //}}}
 
 void
@@ -240,12 +236,12 @@ write_vd(std::ostream& os, const StarVD& vd, const SiteSet& sites, const std::st
 
   write_vd_arrangement_faces(os, vd);
 
-  std::vector<Segment_2> arcs[2];
+  std::vector<RatSegment_2> arcs[2];
   os << "<group layer=\"vd-boundary\">\n";
   for (auto eit = diag.edges_begin(); eit != diag.edges_end(); ++eit) {
-    const Point_2& p1 = eit->source()->point();
-    const Point_2& p2 = eit->target()->point();
-    const Segment_2 s(p1, p2);
+    const RatPoint_2& p1 = eit->source()->point();
+    const RatPoint_2& p2 = eit->target()->point();
+    const RatSegment_2 s(p1, p2);
 
     if (eit->number_of_surfaces() == 1) {
       write_segment(os, s, STROKE_UNKNOWN);
