@@ -11,9 +11,13 @@
 #include <iostream>
 #include <string.h>
 
-#include <surf.h>
 #include "stardist.h"
+#ifndef VD_ONLY
+#include <surf.h>
+#endif
+
 #include "pointset.h"
+#include "gitversion.h"
 
 static const char* short_options = "hIv:O:";
 static struct option long_options[] = {
@@ -25,6 +29,17 @@ static struct option long_options[] = {
   { "vd-no-auto-raise"   , no_argument        , 0, 'N'},
   { 0, 0, 0, 0}
 };
+
+
+static void
+star_setup_logging(int argc, char* argv[]) {
+  START_EASYLOGGINGPP(argc, argv);
+
+  el::Configurations defaultConf;
+  defaultConf.setGlobally(el::ConfigurationType::Format, "%datetime{%H%m%s.%g} %levshort %msg");
+  el::Loggers::reconfigureAllLoggers(defaultConf);
+  el::Loggers::addFlag( el::LoggingFlag::ColoredTerminalOutput );
+}
 
 [[noreturn]]
 static void
@@ -101,8 +116,17 @@ main(int argc, char *argv[]) {
     }
   }
 
-  setup_logging(argc, argv);
+  star_setup_logging(argc, argv);
   el::Loggers::setVerboseLevel(verbose);
+
+  LOG(INFO) << "stardist"
+            << "; git revision: " << GITVERSION
+            << "; CMAKE_BUILD_TYPE: " << STAR_CMAKE_BUILD_TYPE
+#ifdef VD_ONLY
+            << "; VD_ONLY"
+#endif
+  ;
+
 
   int numargs = argc - optind;
   if (numargs < 1 || numargs > 3) {

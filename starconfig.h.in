@@ -1,0 +1,13 @@
+#pragma once
+
+/** Build only the VD backend
+ */
+#cmakedefine VD_ONLY @VD_ONLY@
+
+/** The cmake build type, if we have it.
+ */
+#define STAR_CMAKE_BUILD_TYPE "@UPPERCASE_CMAKE_BUILD_TYPE@"
+
+/** the version as supplied by CMake
+ */
+#cmakedefine VERSIONGIT "@VERSIONGIT@"

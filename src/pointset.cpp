@@ -4,8 +4,11 @@
 
 #include <CGAL/Delaunay_triangulation_2.h>
 
+#ifndef VD_ONLY
 #include <BasicInput.h>
 #include <SkeletonStructure.h>
+#endif
+
 #include "vd.h"
 #include "ipe_writer.h"
 
@@ -127,7 +130,37 @@ IpeMarker(const pugi::xml_node& node)
   ss.str(node.attribute("pos").value());
 
   NT x,y;
+#ifdef NT_CAN_PARSE_DECIMALS
   ss >> x >> y;
+#else
+  // LOG(DEBUG) << "parsing " << node.attribute("pos").value();
+  for (int coordinate=0; coordinate <= 1; ++coordinate) {
+    std::string s;
+    ss >> s;
+    // LOG(DEBUG) << "dealing with " << s;
+
+    NT n;
+
+    size_t pos = s.find('.');
+    if (pos == std::string::npos) {
+      n = NT(s);
+    } else {
+      n = NT(s.substr(0,pos));
+      std::string fractional = s.substr(pos+1);
+      NT f(fractional);
+      for (unsigned i=0; i<fractional.length(); ++i) {
+        f /= 10;
+      };
+      n += f;
+    }
+    // LOG(DEBUG) << " got " << n;
+    if (!coordinate) {
+      x = n;
+    } else {
+      y = n;
+    };
+   };
+#endif
   if (ss.fail()) {
     LOG(ERROR) << "Error: parsing pos failed: " << node.attribute("pos").value();
     exit(1);
@@ -188,6 +221,7 @@ IpePath(const pugi::xml_node& node)
 //}}}
 
 // SurfInput {{{
+#ifndef VD_ONLY
 class SurfInput : public BasicInput {
   private:
     int v_ctr = 0;
@@ -203,7 +237,7 @@ add_vertex(const Point_2& p) {
   BasicInput::add_vertex( Vertex(p, 2, num_vertices_()) );
   return num_vertices_()-1;
 }
-
+#endif
 //}}}
 
 // Star {{{
@@ -258,6 +292,7 @@ shrink(const NT& scale) { //{{{
 void
 Star::
 add_to_input(SurfInput& si, const Point_2& location) const { //{{{
+#ifndef VD_ONLY
   Point_2 o(CGAL::ORIGIN);
   Vector_2 loc_v(location.x(), location.y());
 
@@ -276,16 +311,17 @@ add_to_input(SurfInput& si, const Point_2& location) const { //{{{
 
     prev_idx = idx;
   }
+#endif
 } //}}}
 
 void
 Star::
 add_to_input(TriangleList& triangles, const Point_2& location, const int site_idx, const NT& max_time) const { //{{{
-  Point_3 center(location.x(), location.y(), NT::getZero());
+  Point_3 center(location.x(), location.y(), CORE_ZERO);
 
   std::vector<Point_3> vertices;
   for (const auto& p : _pts) {
-    Vector_3 pnt_vector(p.x(), p.y(), NT::getOne());
+    Vector_3 pnt_vector(p.x(), p.y(), CORE_ONE);
     vertices.push_back( center + max_time * pnt_vector );
   };
 
@@ -486,9 +522,10 @@ Input(std::istream &stars_ipe, std::istream &sites_ipe) { //{{{
   LOG(INFO) << "min site dist (squared) " << min_site_dist;
   LOG(INFO) << "max star size (squared) " << max_star_size;
 
-  NT scale = NT::getOne();
-  NT scalesq = NT::getOne();
+  NT scale = CORE_ONE;
+  NT scalesq = CORE_ONE;
   while (max_star_size * 4 >= min_site_dist * scalesq) {
+    LOG(INFO) << "trying with scale " << scale;
     scale   *= 2;
     scalesq *= 4;
   }
@@ -499,6 +536,7 @@ Input(std::istream &stars_ipe, std::istream &sites_ipe) { //{{{
 bool
 Input::
 do_sk(std::ostream &os, std::string skoffset) const { //{{{
+#ifndef VD_ONLY
   SkeletonStructure s( sites.make_surf_input() );
 
   s.initialize(0 /* restrict component */);
@@ -506,8 +544,11 @@ do_sk(std::ostream &os, std::string skoffset) const { //{{{
 
   const SkeletonDCEL &sk = s.get_skeleton();
   IpeWriter().write_skeleton(os, sk, sites, skoffset);
-
   return true;
+#else
+  LOG(ERROR) << "not enabled at build time.";
+  return false;
+#endif
 } //}}}
 
 bool

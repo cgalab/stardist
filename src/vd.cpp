@@ -183,7 +183,9 @@ StarVD(const SiteSet& sites, const NT& max_time, const bool auto_height) //{{{
   , _auto_height(auto_height)
 {
   while (1) {
+    LOG(DEBUG) << " preparing triangles";
     _triangles = sites.make_vd_input(_max_time);
+    LOG(DEBUG) << " computing lower envelope";
     CGAL::lower_envelope_3 (_triangles.begin(), _triangles.end(), _arr);
 
     _is_valid = check_sufficiently_far();

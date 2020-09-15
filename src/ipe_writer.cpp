@@ -3,7 +3,10 @@
 
 #include "pointset.h"
 #include "vd.h"
-#include <SkeletonStructure.h>
+
+#ifndef VD_ONLY
+  #include <SkeletonStructure.h>
+#endif
 
 #include <unordered_set>
 
@@ -55,7 +58,7 @@ IpeWriter::
 write_header(std::ostream& os) { //{{{
   os << "<?xml version=\"1.0\"?>\n"
         "<!DOCTYPE ipe SYSTEM \"ipe.dtd\">\n"
-        "<ipe version=\"70000\" creator=\"surfer2\">\n"
+        "<ipe version=\"70000\" creator=\"stardist\">\n"
         "<info bbox=\"cropbox\" />\n"
 
         "<ipestyle name=\"basic\">\n"
@@ -166,6 +169,7 @@ IpeWriter::write_vd_arrangement_faces(std::ostream& os, const StarVD& vd) { //{{
 void
 IpeWriter::
 write_skeleton(std::ostream& os, const SkeletonDCEL& sk, const SiteSet& sites, const std::string& offset_spec) { //{{{
+#ifndef VD_ONLY
   const int ray_length = 10;
   std::vector<SkeletonDCEL::OffsetFamily> offsets;
   for (const NT& offset_distance : sk.parse_offset_spec( offset_spec )) {
@@ -220,8 +224,8 @@ write_skeleton(std::ostream& os, const SkeletonDCEL& sk, const SiteSet& sites, c
 
   write_sites(os, sites);
   write_footer(os);
+#endif
 } //}}}
-
 
 void
 IpeWriter::

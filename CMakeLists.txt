@@ -36,4 +36,13 @@ if (NOT UPPERCASE_CMAKE_BUILD_TYPE MATCHES "^(DEBUG|RELEASE)$")
   message(FATAL_ERROR "Invalid value for CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 endif()
 
+# declare the options
+option(VD_ONLY       "Only build VD backend" ON)
+
+configure_file (
+  "${PROJECT_SOURCE_DIR}/starconfig.h.in"
+  "${PROJECT_BINARY_DIR}/starconfig.h"
+  @ONLY
+)
+
 subdirs (src)

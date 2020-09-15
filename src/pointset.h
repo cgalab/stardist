@@ -5,7 +5,14 @@
 #include <unordered_map>
 #include <pugixml.hpp>
 
+#ifndef VD_ONLY
 class SurfInput;
+#else
+class SurfInput {
+  public:
+    static void finalize() {};
+};
+#endif
 
 class Star {
   private:
