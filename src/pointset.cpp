@@ -283,6 +283,22 @@ get_max_distance_squared() const { //{{{
 
 void
 Star::
+add_to_distance_set(std::set<CoreNT>& distances) const {
+  RatPoint_2 o(CGAL::ORIGIN);
+  RatPoint_2 prev = _pts.back();
+
+  for (const auto& pnt : _pts) {
+    RatLine_2 l(prev, pnt);
+    CoreNT distance_to_origin_sq = CGAL::sqrt( CoreNT(CGAL::squared_distance(o, l)) );
+
+    distances.insert(distance_to_origin_sq);
+
+    prev = pnt;
+  }
+}
+
+void
+Star::
 shrink(const RatNT& scale) { //{{{
   for (auto &p : _pts) {
     p = RatPoint_2(p.x() / scale, p.y() / scale);
@@ -393,6 +409,33 @@ get_max_distance_squared() const { //{{{
     max_dist = std::max(max_dist, this_dist);
   }
   return max_dist;
+}
+//}}}
+
+CoreNT
+StarSet::
+get_closest_distance() const { //{{{
+  std::set<CoreNT> distances;
+  distances.insert(0);
+  for (auto const& star : *this) {
+    star.second.add_to_distance_set(distances);
+  };
+
+  auto dist_it = distances.begin();
+  assert(dist_it != distances.end());
+  assert(*dist_it == 0);
+  ++dist_it;
+  assert(dist_it != distances.end());
+
+  auto prev_it = dist_it;
+  CoreNT closest_dist = *dist_it;
+  for (++dist_it; dist_it != distances.end(); ++dist_it) {
+    CoreNT this_dist = *dist_it - *prev_it;
+    assert(this_dist > 0);
+    closest_dist = std::min(closest_dist, this_dist);
+  }
+
+  return closest_dist;
 }
 //}}}
 
@@ -546,8 +589,8 @@ do_sk(std::ostream &os, std::string skoffset) const { //{{{
 
 bool
 Input::
-do_vd(std::ostream &os, const RatNT& max_time, bool auto_height, std::string skoffset) const { //{{{
-  StarVD vd(sites, max_time, auto_height);
+do_vd(std::ostream &os, const RatNT& max_time, std::string skoffset) const { //{{{
+  StarVD vd(sites, stars, max_time);
 
   IpeWriter().write_vd(os, vd, sites, skoffset);
 

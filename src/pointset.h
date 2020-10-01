@@ -15,6 +15,7 @@ class Star {
   public:
     Star(const std::vector<RatPoint_2> pts, const RatPoint_2& center, const std::string& stroke /* for logging/warning purposes only */);
     RatNT get_max_distance_squared() const;
+    void add_to_distance_set(std::set<CoreNT>& distances) const;
     const std::vector<RatPoint_2>& pts() const { return _pts; };
     void shrink(const RatNT& scale);
     void add_to_input(SurfInput& si, const RatPoint_2& p) const;
@@ -33,6 +34,7 @@ class StarSet : private std::unordered_map<std::string, Star> {
     using Base::end;
 
     RatNT get_max_distance_squared() const;
+    CoreNT get_closest_distance() const;
     void shrink(const RatNT& scale);
 };
 
@@ -72,5 +74,5 @@ class Input {
   public:
     Input(std::istream &stars_ipe, std::istream &sites_ipe);
     bool do_sk(std::ostream &os, std::string skoffset) const;
-    bool do_vd(std::ostream &os, const RatNT& max_time, bool auto_height, std::string skoffset) const;
+    bool do_vd(std::ostream &os, const RatNT& max_time, std::string skoffset) const;
 };

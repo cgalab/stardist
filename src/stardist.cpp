@@ -25,7 +25,6 @@ static struct option long_options[] = {
   { "verbose"            , optional_argument  , 0, 'v'},
   { "sk-offset"          , required_argument  , 0, 'O'},
   { "vd-height"          , required_argument  , 0, 'H'},
-  { "vd-no-auto-raise"   , no_argument        , 0, 'N'},
   { 0, 0, 0, 0}
 };
 
@@ -50,7 +49,6 @@ usage(const char *progname, int err) {
   fprintf(f,"           --vd           Make a VD instead of a straight skeleton/SEVD.\n");
   fprintf(f,"           --sk-offset=<offset-spec>  Draw offsets.\n");
   fprintf(f,"           --vd-height=<HEIGHT>       Extend upwards surfaces up to HEIGHT.\n");
-  fprintf(f,"           --vd-no-auto-raise         Do not automatically increase height.\n");
   fprintf(f,"\n");
   fprintf(f,"        STARSET  .ipe file -- stars are polygons with their center as an IPE marker\n");
   fprintf(f,"        POINTSET .ipe file -- sites are IPE markers\n");
@@ -67,8 +65,7 @@ main(int argc, char *argv[]) {
   bool make_vd = false;
   unsigned verbose = 0;
   std::string skoffset;
-  RatNT vd_height = 2;
-  bool auto_height = true;
+  RatNT vd_height = 0;
 
   while (1) {
     int option_index = 0;
@@ -99,10 +96,6 @@ main(int argc, char *argv[]) {
 
       case 'H':
         vd_height = string2RatNT(optarg);
-        break;
-
-      case 'N':
-        auto_height = false;
         break;
 
       case 'O':
@@ -162,7 +155,7 @@ main(int argc, char *argv[]) {
   bool success;
   Input input(*starin, *in);
   if (make_vd) {
-    success = input.do_vd(*out, vd_height, auto_height, skoffset);
+    success = input.do_vd(*out, vd_height, skoffset);
   } else {
     success = input.do_sk(*out, skoffset);
   }

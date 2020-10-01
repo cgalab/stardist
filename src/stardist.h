@@ -55,6 +55,7 @@ using Envelope_diagram_2 = typename CGAL::Envelope_diagram_2<Data_traits_3>;
 using TriangleList       = typename std::vector<Data_triangle_3>;
 
 class SiteSet;
+class StarSet;
 
 inline CorePoint_2
 Rat2Core(const RatPoint_2& p) {

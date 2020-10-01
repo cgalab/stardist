@@ -3,6 +3,8 @@
 
 #include "pointset.h"
 
+#include <algorithm>
+
 bool
 StarVD::
 check_sufficiently_far() { //{{{
@@ -17,7 +19,7 @@ check_sufficiently_far() { //{{{
   using Halfedge_around_vertex_const_circulator = typename Envelope_diagram_2::Halfedge_around_vertex_const_circulator;
   using Halfedge_around_vertex_const_circulator = typename Envelope_diagram_2::Halfedge_around_vertex_const_circulator;
 
-  _new_max_time = _max_time;
+  RatNT new_max_time = _max_time;
 
   /* If the unbounded face has more than one hole, then our triangles did not go up far enough to meet.
    * (The reverse does not hold.  There could be area not reached by the wavefront
@@ -28,7 +30,6 @@ check_sufficiently_far() { //{{{
   if (unbounded_face->number_of_holes() != 1) {
     LOG(WARNING) << "Unbounded face has " << unbounded_face->number_of_holes() << " holes.  "
                  << "This indicates that the propagation did not process sufficiently far.";
-    _new_max_time *= 2;
     return false;
   };
 
@@ -50,7 +51,6 @@ check_sufficiently_far() { //{{{
         ! eit->twin()->face()->is_unbounded()) {
       LOG(WARNING) << "Found boundary edge not incident to the unbounded face.  "
                    << "This indicates the propagation left a single, multiply-connected set of surfaces in the lower envelope.";
-      _new_max_time *= 2;
       return false;
     }
   }
@@ -72,7 +72,6 @@ check_sufficiently_far() { //{{{
     if (degree > 3) {
       LOG(WARNING) << "Found boundary vertex with degree of " << degree << " (which is > 3).  "
                    << "This might indicate the propagation has not finished.";
-      _new_max_time *= 2;
       return false;
     };
 
@@ -160,8 +159,8 @@ check_sufficiently_far() { //{{{
       assert(pnt);
 
       // LOG(INFO) << "  arcs meet in " << *pnt;
-      while (_new_max_time < pnt->z()) {
-        _new_max_time *= 2;
+      while (new_max_time < pnt->z()) {
+        new_max_time *= 2;
       }
     };
 
@@ -171,39 +170,54 @@ check_sufficiently_far() { //{{{
   if (arcs_colliding) {
     LOG(INFO) << "Arcs are on a collision course.  "
               << "The propagation has not finished yet.  "
-              << "Recommend new minimum --vd-max of " << CGAL::to_double(_new_max_time) << ".";
+              << "Recommend new minimum --vd-max of " << CGAL::to_double(new_max_time) << ".";
+    return false;
   };
 
   return true;
 } //}}}
 
 StarVD::
-StarVD(const SiteSet& sites, const RatNT& max_time, const bool auto_height) //{{{
+StarVD(const SiteSet& sites, const StarSet& stars, const RatNT& max_time) //{{{
   : _max_time(max_time)
-  , _auto_height(auto_height)
 {
-  while (1) {
-    LOG(DEBUG) << " preparing triangles";
-    _triangles = sites.make_vd_input(_max_time);
-    LOG(DEBUG) << " computing lower envelope";
-    CGAL::lower_envelope_3 (_triangles.begin(), _triangles.end(), _arr);
+  if (_max_time == 0) {
+    CoreNT closest_site_speed = stars.get_closest_distance();
 
-    LOG(DEBUG) << " verifying";
-    _is_valid = check_sufficiently_far();
-    if (_is_valid) {
-      LOG(INFO) << "  VD looks good with upper height of " << CGAL::to_double(_max_time) << ".";
-      break;
+    auto [min_x_el, max_x_el] = std::minmax_element(std::begin(sites.get_sites()), std::end(sites.get_sites()),
+      [] (const Site& s1, const Site& s2) {
+        return s1.pos().x() < s2.pos().x();
+      });
+    auto [min_y_el, max_y_el] = std::minmax_element(std::begin(sites.get_sites()), std::end(sites.get_sites()),
+      [] (const Site& s1, const Site& s2) {
+        return s1.pos().y() < s2.pos().y();
+      });
+
+    RatNT delta_x = max_x_el->pos().x() - min_x_el->pos().x();
+    RatNT delta_y = max_y_el->pos().y() - min_y_el->pos().y();
+
+    CoreNT bb_diameter = CGAL::sqrt( CoreNT(delta_x*delta_x + delta_y*delta_y) );
+    CoreNT max_time_target = bb_diameter/closest_site_speed;
+
+    _max_time = 1;
+    while (_max_time < max_time_target) {
+      _max_time   *= 2;
     }
-
-    LOG(WARNING) << "  Triangles too small with height " << CGAL::to_double(_max_time) << ".";
-
-    if (! _auto_height) break;
-    assert(_new_max_time > _max_time);
-
-    _max_time = _new_max_time;
-    _arr.clear();
-    LOG(INFO) << "  Trying again with max height of " << CGAL::to_double(_max_time) << ".";
+    LOG(INFO) << "Setting VD max-time to " << _max_time;
   };
+
+  LOG(DEBUG) << " preparing triangles";
+  _triangles = sites.make_vd_input(_max_time);
+  LOG(DEBUG) << " computing lower envelope";
+  CGAL::lower_envelope_xy_monotone_3 (_triangles.begin(), _triangles.end(), _arr);
+
+  LOG(DEBUG) << " verifying";
+  _is_valid = check_sufficiently_far();
+  if (!_is_valid) {
+    LOG(WARNING) << "  Triangles too small with height " << CGAL::to_double(_max_time) << ".";
+  } else {
+    LOG(INFO) << "  VD looks good with upper height of " << CGAL::to_double(_max_time) << ".";
+  }
 } //}}}
 
 
