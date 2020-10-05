@@ -356,18 +356,18 @@ add_to_input(SurfInput& si, const RatPoint_2& location) const { //{{{
 
 void
 Star::
-make_vertices(std::vector<RatRay_3>& vertices, const RatPoint_2& location) const { //{{{
+make_vertices(std::back_insert_iterator<RatRay3List> verticesIt, const RatPoint_2& location) const { //{{{
   RatPoint_3 center(location.x(), location.y(), 0);
 
   for (const auto& p : _pts) {
     RatVector_3 pnt_vector(p.x(), p.y(), 1);
-    vertices.push_back( RatRay_3( center, pnt_vector ) );
+    verticesIt = RatRay_3( center, pnt_vector );
   };
 } //}}}
 
 void
 Star::
-make_triangles(RealTriangleList& triangles, const RatPoint_2& location, const RatNT& max_time) const { //{{{
+make_triangles(std::back_insert_iterator<RealTriangleList> trianglesIt, const RatPoint_2& location, const RatNT& max_time) const { //{{{
   RatPoint_3 center(location.x(), location.y(), 0);
 
   std::vector<RatPoint_3> vertices;
@@ -378,20 +378,20 @@ make_triangles(RealTriangleList& triangles, const RatPoint_2& location, const Ra
 
   unsigned prev_idx = _pts.size()-1;
   for (unsigned idx = 0; idx < _pts.size(); ++idx) {
-    triangles.push_back( RatTriangle_3 (center, vertices[prev_idx], vertices[idx]) );
+    trianglesIt = RatTriangle_3 (center, vertices[prev_idx], vertices[idx]);
     prev_idx = idx;
   }
 } //}}}
 
 void
 Star::
-add_to_input(TriangleList& triangles, const RatPoint_2& location, const int site_idx, const RatNT& max_time) const { //{{{
+add_to_input(std::back_insert_iterator<TriangleList> trianglesIt, const RatPoint_2& location, const int site_idx, const RatNT& max_time) const { //{{{
   RealTriangleList real_triangles;
-  make_triangles(real_triangles, location, max_time);
+  make_triangles(std::back_inserter(real_triangles), location, max_time);
 
   unsigned idx = 0;
   for (const auto& t : real_triangles) {
-    triangles.push_back( Data_triangle_3( t, {site_idx, idx} ) );
+    trianglesIt = Data_triangle_3( t, {site_idx, idx} );
     ++idx;
   }
 } //}}}
@@ -589,19 +589,21 @@ TriangleList
 SiteSet::
 make_vd_input(const RatNT& max_time) const { //{{{
   TriangleList tl;
+  auto it = std::back_inserter(tl);
   int idx = 0;
   for (const auto& s : sites) {
-    s.add_to_input(tl, idx++, max_time);
+    s.add_to_input(it, idx++, max_time);
   }
   return tl;
 } //}}}
 
-std::vector<RatRay_3>
+RatRay3List
 SiteSet::
 make_vertices() const { //{{{
-  std::vector<RatRay_3> vertices;
+  RatRay3List vertices;
+  auto it = std::back_inserter(vertices);
   for (const auto& s : sites) {
-    s.make_vertices(vertices);
+    s.make_vertices(it);
   }
   return vertices;
 } //}}}
@@ -610,8 +612,9 @@ RealTriangleList
 SiteSet::
 make_triangles() const { //{{{
   RealTriangleList tl;
+  auto it = std::back_inserter(tl);
   for (const auto& s : sites) {
-    s.make_triangles(tl, 1);
+    s.make_triangles(it, 1);
   }
   return tl;
 } //}}}

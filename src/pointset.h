@@ -7,6 +7,8 @@
 
 RatNT string2RatNT(const std::string& s);
 
+using RatRay3List = std::vector<RatRay_3>;
+
 class SurfInput;
 
 class Star {
@@ -22,9 +24,9 @@ class Star {
 
     void add_to_input(SurfInput& si, const RatPoint_2& p) const;
 
-    void make_vertices(std::vector<RatRay_3>& vertices, const RatPoint_2& location) const;
-    void make_triangles(RealTriangleList& triangles, const RatPoint_2& location, const RatNT& max_time) const;
-    void add_to_input(TriangleList& triangles, const RatPoint_2& p, const int site_idx, const RatNT& max_time) const;
+    void make_vertices(std::back_insert_iterator<RatRay3List> verticesIt, const RatPoint_2& location) const;
+    void make_triangles(std::back_insert_iterator<RealTriangleList> trianglesIt, const RatPoint_2& location, const RatNT& max_time) const;
+    void add_to_input(std::back_insert_iterator<TriangleList> trianglesIt, const RatPoint_2& p, const int site_idx, const RatNT& max_time) const;
 };
 
 class StarSet : private std::unordered_map<std::string, Star> {
@@ -59,9 +61,9 @@ class Site {
 
     void add_to_input(SurfInput& si) const { shape().add_to_input(si, pos()); };
 
-    void make_vertices(std::vector<RatRay_3>& vertices) const { shape().make_vertices(vertices, pos()); };
-    void make_triangles(RealTriangleList& triangles, const RatNT& max_time) const { shape().make_triangles(triangles, pos(), max_time); };
-    void add_to_input(TriangleList& triangles, const int site_idx, const RatNT& max_time) const { shape().add_to_input(triangles, pos(), site_idx, max_time); };
+    void make_vertices(std::back_insert_iterator<RatRay3List> verticesIt) const { shape().make_vertices(verticesIt, pos()); };
+    void make_triangles(std::back_insert_iterator<RealTriangleList> trianglesIt, const RatNT& max_time) const { shape().make_triangles(trianglesIt, pos(), max_time); };
+    void add_to_input(std::back_insert_iterator<TriangleList> trianglesIt, const int site_idx, const RatNT& max_time) const { shape().add_to_input(trianglesIt, pos(), site_idx, max_time); };
 };
 
 class SiteSet {
@@ -74,7 +76,7 @@ class SiteSet {
 
     SurfInput make_surf_input() const;
 
-    std::vector<RatRay_3> make_vertices() const; /* of unit height */
+    RatRay3List make_vertices() const; /* of unit height */
     RealTriangleList make_triangles() const; /* of unit height */
     TriangleList make_vd_input(const RatNT& max_time) const;
 
