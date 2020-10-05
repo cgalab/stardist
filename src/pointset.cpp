@@ -100,8 +100,12 @@ void
 IpeMatrix::
 init_from_string(const std::string &m) {
   std::stringstream ss(m);
-
-  ss >> m0 >> m1 >> m2 >> m3 >> m4 >> m5;
+  m0 = ss2RatNT(ss);
+  m1 = ss2RatNT(ss);
+  m2 = ss2RatNT(ss);
+  m3 = ss2RatNT(ss);
+  m4 = ss2RatNT(ss);
+  m5 = ss2RatNT(ss);
   if (ss.fail()) {
     LOG(ERROR) << "Error: parsing transformation matrix failed: " << m;
     exit(1);
@@ -201,7 +205,9 @@ IpePath(const pugi::xml_node& node)
       break;
     }
     ss.str(line);
-    ss >> x >> y >> t;
+    x = ss2RatNT(ss);
+    y = ss2RatNT(ss);
+    ss >> t;
     if (ss.fail()) {
       LOG(ERROR) << "Error: parsing path failed: at '" << ss.str() << "' of " << node2str(node);
       exit(1);
