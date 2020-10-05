@@ -14,11 +14,16 @@ class Star {
     std::vector<RatPoint_2> _pts;
   public:
     Star(const std::vector<RatPoint_2> pts, const RatPoint_2& center, const std::string& stroke /* for logging/warning purposes only */);
-    RatNT get_max_distance_squared() const;
-    void add_to_distance_set(std::set<CoreNT>& distances) const;
+    RatNT get_max_vertex_distance_squared() const;
+    RatNT get_min_edge_distance_squared() const;
+    // void add_to_distance_set(std::set<CoreNT>& distances) const;
     const std::vector<RatPoint_2>& pts() const { return _pts; };
     void shrink(const RatNT& scale);
+
     void add_to_input(SurfInput& si, const RatPoint_2& p) const;
+
+    void make_vertices(std::vector<RatRay_3>& vertices, const RatPoint_2& location) const;
+    void make_triangles(RealTriangleList& triangles, const RatPoint_2& location, const RatNT& max_time) const;
     void add_to_input(TriangleList& triangles, const RatPoint_2& p, const int site_idx, const RatNT& max_time) const;
 };
 
@@ -33,8 +38,8 @@ class StarSet : private std::unordered_map<std::string, Star> {
     using Base::find;
     using Base::end;
 
-    RatNT get_max_distance_squared() const;
-    CoreNT get_closest_distance() const;
+    RatNT get_max_vertex_distance_squared() const;
+    RatNT get_min_edge_distance_squared() const;
     void shrink(const RatNT& scale);
 };
 
@@ -51,8 +56,12 @@ class Site {
     static Site from_ipe_element(const pugi::xml_node& node, const StarSet& stars);
     const RatPoint_2& pos() const { return _pos; };
     const Star& shape() const { return _shape->second; };
-    void add_to_input(SurfInput& si) const;
-    void add_to_input(TriangleList& triangles, const int site_idx, const RatNT& max_time) const;
+
+    void add_to_input(SurfInput& si) const { shape().add_to_input(si, pos()); };
+
+    void make_vertices(std::vector<RatRay_3>& vertices) const { shape().make_vertices(vertices, pos()); };
+    void make_triangles(RealTriangleList& triangles, const RatNT& max_time) const { shape().make_triangles(triangles, pos(), max_time); };
+    void add_to_input(TriangleList& triangles, const int site_idx, const RatNT& max_time) const { shape().add_to_input(triangles, pos(), site_idx, max_time); };
 };
 
 class SiteSet {
@@ -62,8 +71,13 @@ class SiteSet {
     void load_from_ipe(std::istream &ins, const StarSet& stars);
 
     RatNT get_closest_distance_squared() const;
+
     SurfInput make_surf_input() const;
+
+    std::vector<RatRay_3> make_vertices() const; /* of unit height */
+    RealTriangleList make_triangles() const; /* of unit height */
     TriangleList make_vd_input(const RatNT& max_time) const;
+
     const std::vector<Site>& get_sites() const { return sites; };
 };
 

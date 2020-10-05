@@ -269,7 +269,7 @@ Star(const std::vector<RatPoint_2> pts, const RatPoint_2& center, const std::str
 
 RatNT
 Star::
-get_max_distance_squared() const { //{{{
+get_max_vertex_distance_squared() const { //{{{
   auto pit = _pts.begin();
   assert (pit != _pts.end());
 
@@ -281,6 +281,31 @@ get_max_distance_squared() const { //{{{
   return max_dist;
 } //}}}
 
+RatNT
+Star::
+get_min_edge_distance_squared() const { //{{{
+  RatPoint_2 o(CGAL::ORIGIN);
+  assert(_pts.size() > 0);
+  RatPoint_2 prev = _pts.back();
+
+  RatNT min_dist;
+  bool first = true;
+
+  for (const auto& pnt : _pts) {
+    RatLine_2 l(prev, pnt);
+    RatNT this_dist = CGAL::squared_distance(o, l);
+
+    min_dist = first ? this_dist : std::min(min_dist, this_dist);
+    first = false;
+
+    prev = pnt;
+  }
+  assert(!first);
+  return min_dist;
+} //}}}
+
+
+#if 0
 void
 Star::
 add_to_distance_set(std::set<CoreNT>& distances) const {
@@ -296,6 +321,7 @@ add_to_distance_set(std::set<CoreNT>& distances) const {
     prev = pnt;
   }
 }
+#endif
 
 void
 Star::
@@ -330,7 +356,18 @@ add_to_input(SurfInput& si, const RatPoint_2& location) const { //{{{
 
 void
 Star::
-add_to_input(TriangleList& triangles, const RatPoint_2& location, const int site_idx, const RatNT& max_time) const { //{{{
+make_vertices(std::vector<RatRay_3>& vertices, const RatPoint_2& location) const { //{{{
+  RatPoint_3 center(location.x(), location.y(), 0);
+
+  for (const auto& p : _pts) {
+    RatVector_3 pnt_vector(p.x(), p.y(), 1);
+    vertices.push_back( RatRay_3( center, pnt_vector ) );
+  };
+} //}}}
+
+void
+Star::
+make_triangles(RealTriangleList& triangles, const RatPoint_2& location, const RatNT& max_time) const { //{{{
   RatPoint_3 center(location.x(), location.y(), 0);
 
   std::vector<RatPoint_3> vertices;
@@ -341,13 +378,21 @@ add_to_input(TriangleList& triangles, const RatPoint_2& location, const int site
 
   unsigned prev_idx = _pts.size()-1;
   for (unsigned idx = 0; idx < _pts.size(); ++idx) {
-    triangles.push_back(
-      Data_triangle_3(
-        Triangle_3 (center, vertices[prev_idx], vertices[idx]),
-        {site_idx, idx}
-      )
-    );
+    triangles.push_back( RatTriangle_3 (center, vertices[prev_idx], vertices[idx]) );
     prev_idx = idx;
+  }
+} //}}}
+
+void
+Star::
+add_to_input(TriangleList& triangles, const RatPoint_2& location, const int site_idx, const RatNT& max_time) const { //{{{
+  RealTriangleList real_triangles;
+  make_triangles(real_triangles, location, max_time);
+
+  unsigned idx = 0;
+  for (const auto& t : real_triangles) {
+    triangles.push_back( Data_triangle_3( t, {site_idx, idx} ) );
+    ++idx;
   }
 } //}}}
 
@@ -399,19 +444,35 @@ load_from_ipe(std::istream &ins) { //{{{
 
 RatNT
 StarSet::
-get_max_distance_squared() const { //{{{
+get_max_vertex_distance_squared() const { //{{{
   auto star_it = begin();
   assert (star_it != end());
 
-  RatNT max_dist = star_it->second.get_max_distance_squared();
+  RatNT max_dist = star_it->second.get_max_vertex_distance_squared();
   for (++star_it; star_it != end(); ++star_it) {
-    RatNT this_dist = star_it->second.get_max_distance_squared();
+    RatNT this_dist = star_it->second.get_max_vertex_distance_squared();
     max_dist = std::max(max_dist, this_dist);
   }
   return max_dist;
 }
 //}}}
 
+RatNT
+StarSet::
+get_min_edge_distance_squared() const { //{{{
+  auto star_it = begin();
+  assert (star_it != end());
+
+  RatNT min_dist = star_it->second.get_min_edge_distance_squared();
+  for (++star_it; star_it != end(); ++star_it) {
+    RatNT this_dist = star_it->second.get_min_edge_distance_squared();
+    min_dist = std::min(min_dist, this_dist);
+  }
+  return min_dist;
+}
+//}}}
+
+#if 0
 CoreNT
 StarSet::
 get_closest_distance() const { //{{{
@@ -438,6 +499,7 @@ get_closest_distance() const { //{{{
   return closest_dist;
 }
 //}}}
+#endif
 
 void
 StarSet::
@@ -462,18 +524,6 @@ Site::from_ipe_element(const pugi::xml_node& node, const StarSet& stars) { //{{{
   }
 
   return Site(m.pos(), star_it);
-} //}}}
-
-void
-Site::
-add_to_input(SurfInput& si) const { //{{{
-  shape().add_to_input(si, pos());
-} //}}}
-
-void
-Site::
-add_to_input(TriangleList& triangles, const int site_idx, const RatNT& max_time) const { //{{{
-  shape().add_to_input(triangles, pos(), site_idx, max_time);
 } //}}}
 
 //}}}
@@ -546,6 +596,26 @@ make_vd_input(const RatNT& max_time) const { //{{{
   return tl;
 } //}}}
 
+std::vector<RatRay_3>
+SiteSet::
+make_vertices() const { //{{{
+  std::vector<RatRay_3> vertices;
+  for (const auto& s : sites) {
+    s.make_vertices(vertices);
+  }
+  return vertices;
+} //}}}
+
+RealTriangleList
+SiteSet::
+make_triangles() const { //{{{
+  RealTriangleList tl;
+  for (const auto& s : sites) {
+    s.make_triangles(tl, 1);
+  }
+  return tl;
+} //}}}
+
 //}}}
 
 // Input {{{
@@ -558,7 +628,7 @@ Input(std::istream &stars_ipe, std::istream &sites_ipe) { //{{{
    * intersect at time t=0
    */
   RatNT min_site_dist = sites.get_closest_distance_squared();
-  RatNT max_star_size = stars.get_max_distance_squared();
+  RatNT max_star_size = stars.get_max_vertex_distance_squared();
 
   LOG(INFO) << "min site dist (squared) " << min_site_dist;
   LOG(INFO) << "max star size (squared) " << max_star_size;

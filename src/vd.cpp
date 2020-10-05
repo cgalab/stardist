@@ -7,8 +7,13 @@
 
 bool
 StarVD::
-check_sufficiently_far() { //{{{
+check_sufficiently_far_approximately() { //{{{
   /** Check if we have made our triangles sufficiently large for the VD to be correct.
+   *
+   * This only verifies that a) the area covered by triangles is a simply-connected set,
+   * and b) there are no future edge events on the boundary.
+   *
+   * It cannot check whether there might be future piercing events (without spending more time).
    */
 
   using Face_handle                             = typename Envelope_diagram_2::Face_handle;
@@ -177,42 +182,103 @@ check_sufficiently_far() { //{{{
   return true;
 } //}}}
 
+RatNT
+StarVD::
+guess_upper_bound(const SiteSet& sites, const StarSet& stars) const { //{{{
+  /* Find the minimum speed difference of two edges of stars. */
+  RatNT min_edge_speed_squared = stars.get_min_edge_distance_squared();
+
+  /* Get size of the BB */
+  auto [min_x_el, max_x_el] = std::minmax_element(std::begin(sites.get_sites()), std::end(sites.get_sites()),
+    [] (const Site& s1, const Site& s2) {
+      return s1.pos().x() < s2.pos().x();
+    });
+  auto [min_y_el, max_y_el] = std::minmax_element(std::begin(sites.get_sites()), std::end(sites.get_sites()),
+    [] (const Site& s1, const Site& s2) {
+      return s1.pos().y() < s2.pos().y();
+    });
+
+  RatNT delta_x = max_x_el->pos().x() - min_x_el->pos().x();
+  RatNT delta_y = max_y_el->pos().y() - min_y_el->pos().y();
+  RatNT bb_diameter_squared = delta_x*delta_x + delta_y*delta_y;
+
+  /* At this time all edges will (long) have moved over the entire region of the bounding box.
+   *  (min_edge_speed is the slowest speed of an edge's supporting line of all the stars,
+   *  and we divide the entire diameter of the bounding box through this speed.
+   *  So even if the slowest edge started in one corner and its direction was
+   *  exactly along the diagonal, by time max_time_target_squared it would have
+   *  reached the other corner.
+   *
+   *  At this time, the union of all stars itself forms a star-shaped polygon.
+   *
+   *  This does *not* imply that
+   *    a) no edge can collapse anymore.  Indeed, trajectories of vertices on the
+   *       star-shaped union can bring them together and cause an edge event.
+   *    b) no "hidden" vertex (i.e. a star's vertex that is not currently on the
+   *       boundary of the star-shaped union) can break through the wavefront
+   *       and become a new vertex of the wavefront.  Such events can still happen.
+   */
+  RatNT max_time_target_squared = bb_diameter_squared/min_edge_speed_squared;
+
+  RatNT max_time = 1;
+  RatNT max_time_squared = 1;
+
+  while (max_time_squared < max_time_target_squared) {
+    max_time   *= 2;
+    max_time_squared *= 4;
+  }
+  LOG(INFO) << "After time " << sqrt(CGAL::to_double(max_time_target_squared)) << " all (supporting lines of) edges will have traced over the bounding box of inputs";
+
+  return max_time;
+} //}}}
+
+RatNT
+StarVD::
+find_last_pierce_event(const SiteSet& sites, const StarSet& stars) const { //{{{
+  RealTriangleList supporting_triangles = sites.make_triangles();
+
+  std::vector<RatPlane_3> planes;
+  planes.reserve(supporting_triangles.size());
+  std::transform(std::begin(supporting_triangles), std::end(supporting_triangles), std::back_inserter(planes),
+    [](const RatTriangle_3& t) -> RatPlane_3 {
+      return t.supporting_plane();
+    });
+
+  std::vector<RatRay_3> vertices = sites.make_vertices();
+
+  RatNT max_time = 0;
+  for (const auto &pl : planes) {
+    for (const auto &ray : vertices) {
+      CGAL::cpp11::result_of<RatKernel::Intersect_3(RatPlane_3, RatRay_3)>::type res1 = intersection(pl, ray);
+      if (res1) {
+        const RatPoint_3* p = boost::get<RatPoint_3>(&*res1);
+        if (p) {
+          max_time = std::max(max_time, p->z());
+        }
+      }
+    }
+  }
+  LOG(INFO) << "Last pierce event is no later than " << CGAL::to_double(max_time);
+  return max_time;
+}
+
 StarVD::
 StarVD(const SiteSet& sites, const StarSet& stars, const RatNT& max_time) //{{{
   : _max_time(max_time)
 {
   if (_max_time == 0) {
-    CoreNT closest_site_speed = stars.get_closest_distance();
-
-    auto [min_x_el, max_x_el] = std::minmax_element(std::begin(sites.get_sites()), std::end(sites.get_sites()),
-      [] (const Site& s1, const Site& s2) {
-        return s1.pos().x() < s2.pos().x();
-      });
-    auto [min_y_el, max_y_el] = std::minmax_element(std::begin(sites.get_sites()), std::end(sites.get_sites()),
-      [] (const Site& s1, const Site& s2) {
-        return s1.pos().y() < s2.pos().y();
-      });
-
-    RatNT delta_x = max_x_el->pos().x() - min_x_el->pos().x();
-    RatNT delta_y = max_y_el->pos().y() - min_y_el->pos().y();
-
-    CoreNT bb_diameter = CGAL::sqrt( CoreNT(delta_x*delta_x + delta_y*delta_y) );
-    CoreNT max_time_target = bb_diameter/closest_site_speed;
-
-    _max_time = 1;
-    while (_max_time < max_time_target) {
-      _max_time   *= 2;
-    }
-    LOG(INFO) << "Setting VD max-time to " << _max_time;
+    _max_time = guess_upper_bound(sites, stars);
+    _max_time = std::max(_max_time, find_last_pierce_event(sites, stars));
+    LOG(INFO) << "Using time upper-bound (estimate) of " << _max_time;
   };
 
   LOG(DEBUG) << " preparing triangles";
   _triangles = sites.make_vd_input(_max_time);
   LOG(DEBUG) << " computing lower envelope";
-  CGAL::lower_envelope_xy_monotone_3 (_triangles.begin(), _triangles.end(), _arr);
+  CGAL::lower_envelope_3 (_triangles.begin(), _triangles.end(), _arr);
 
   LOG(DEBUG) << " verifying";
-  _is_valid = check_sufficiently_far();
+  _is_valid = check_sufficiently_far_approximately();
   if (!_is_valid) {
     LOG(WARNING) << "  Triangles too small with height " << CGAL::to_double(_max_time) << ".";
   } else {

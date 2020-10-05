@@ -44,6 +44,8 @@ using RatVector_2        = typename RatKernel::Vector_2;
 using RatLine_3          = typename RatKernel::Line_3;
 using RatPlane_3         = typename RatKernel::Plane_3;
 using RatPoint_3         = typename RatKernel::Point_3;
+using RatRay_3           = typename RatKernel::Ray_3;
+using RatTriangle_3      = typename RatKernel::Triangle_3;
 using RatVector_3        = typename RatKernel::Vector_3;
 
 using Traits_3           = typename CGAL::Env_triangle_traits_3<RatKernel>;
@@ -52,6 +54,7 @@ using Data_traits_3      = typename CGAL::Env_surface_data_traits_3<Traits_3, st
 using Data_triangle_3    = typename Data_traits_3::Surface_3;
 using Envelope_diagram_2 = typename CGAL::Envelope_diagram_2<Data_traits_3>;
 
+using RealTriangleList   = typename std::vector<RatTriangle_3>;
 using TriangleList       = typename std::vector<Data_triangle_3>;
 
 class SiteSet;
