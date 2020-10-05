@@ -175,7 +175,7 @@ check_sufficiently_far_approximately() { //{{{
   if (arcs_colliding) {
     LOG(INFO) << "Arcs are on a collision course.  "
               << "The propagation has not finished yet.  "
-              << "Recommend new minimum --vd-max of " << CGAL::to_double(new_max_time) << ".";
+              << "Recommend new minimum --vd-height of " << CGAL::to_double(new_max_time) << ".";
     return false;
   };
 
