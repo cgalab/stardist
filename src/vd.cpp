@@ -163,7 +163,7 @@ check_sufficiently_far_approximately() { //{{{
       const RatPoint_3* pnt = boost::get<RatPoint_3>(&*res2);
       assert(pnt);
 
-      // LOG(INFO) << "  arcs meet in " << *pnt;
+      LOG(INFO) << "  arcs meet in " << *pnt;
       while (new_max_time < pnt->z()) {
         new_max_time *= 2;
       }
