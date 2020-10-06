@@ -189,11 +189,11 @@ guess_upper_bound(const SiteSet& sites, const StarSet& stars) const { //{{{
   RatNT min_edge_speed_squared = stars.get_min_edge_distance_squared();
 
   /* Get size of the BB */
-  auto [min_x_el, max_x_el] = std::minmax_element(std::begin(sites.get_sites()), std::end(sites.get_sites()),
+  auto [min_x_el, max_x_el] = std::minmax_element(std::begin(sites), std::end(sites),
     [] (const Site& s1, const Site& s2) {
       return s1.pos().x() < s2.pos().x();
     });
-  auto [min_y_el, max_y_el] = std::minmax_element(std::begin(sites.get_sites()), std::end(sites.get_sites()),
+  auto [min_y_el, max_y_el] = std::minmax_element(std::begin(sites), std::end(sites),
     [] (const Site& s1, const Site& s2) {
       return s1.pos().y() < s2.pos().y();
     });
@@ -263,22 +263,28 @@ find_last_pierce_event(const SiteSet& sites, const StarSet& stars) const { //{{{
 }
 
 StarVD::
-StarVD(const SiteSet& sites, const StarSet& stars, const RatNT& max_time) //{{{
+StarVD(const SiteSet& sites, const StarSet& stars, const RatNT& max_time, StagesPtr stages_p) //{{{
   : _max_time(max_time)
+  , stages(stages_p)
 {
   if (_max_time == 0) {
     _max_time = guess_upper_bound(sites, stars);
+    stages->push_back( { "guess_upper", clock() } );
     _max_time = std::max(_max_time, find_last_pierce_event(sites, stars));
     LOG(INFO) << "Using time upper-bound (estimate) of " << _max_time;
+    stages->push_back( { "find_pierce", clock() } );
   };
 
   LOG(DEBUG) << " preparing triangles";
   _triangles = sites.make_vd_input(_max_time);
+    stages->push_back( { "prepare_triangles", clock() } );
   LOG(DEBUG) << " computing lower envelope";
   CGAL::lower_envelope_3 (_triangles.begin(), _triangles.end(), _arr);
+  stages->push_back( { "make_envelope", clock() } );
 
   LOG(DEBUG) << " verifying";
   _is_valid = check_sufficiently_far_approximately();
+  stages->push_back( { "verify", clock() } );
   if (!_is_valid) {
     LOG(WARNING) << "  Triangles too small with height " << CGAL::to_double(_max_time) << ".";
   } else {

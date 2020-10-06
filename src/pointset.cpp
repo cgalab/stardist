@@ -548,7 +548,7 @@ load_from_ipe(std::istream &ins, const StarSet& stars) { //{{{
   };
 
   for (auto node : doc.select_nodes("//page/use")) {
-    sites.emplace_back(Site::from_ipe_element(node.node(), stars));
+    emplace_back(Site::from_ipe_element(node.node(), stars));
   };
 } //}}}
 
@@ -562,7 +562,7 @@ get_closest_distance_squared() const { //{{{
    * */
   using Delaunay = CGAL::Delaunay_triangulation_2<RatKernel>;
   Delaunay t;
-  for (const auto& s : sites) {
+  for (const auto& s : *this) {
     t.insert(s.pos());
   }
 
@@ -584,7 +584,7 @@ SurfInput
 SiteSet::
 make_surf_input() const { //{{{
   SurfInput si;
-  for (const auto& s : sites) {
+  for (const auto& s : *this) {
     s.add_to_input(si);
   }
   si.finalize();
@@ -597,7 +597,7 @@ make_vd_input(const RatNT& max_time) const { //{{{
   TriangleList tl;
   auto it = std::back_inserter(tl);
   int idx = 0;
-  for (const auto& s : sites) {
+  for (const auto& s : *this) {
     s.add_to_input(it, idx++, max_time);
   }
   return tl;
@@ -608,7 +608,7 @@ SiteSet::
 make_vertices() const { //{{{
   RatRay3List vertices;
   auto it = std::back_inserter(vertices);
-  for (const auto& s : sites) {
+  for (const auto& s : *this) {
     s.make_vertices(it);
   }
   return vertices;
@@ -619,7 +619,7 @@ SiteSet::
 make_triangles() const { //{{{
   RealTriangleList tl;
   auto it = std::back_inserter(tl);
-  for (const auto& s : sites) {
+  for (const auto& s : *this) {
     s.make_triangles(it, 1);
   }
   return tl;
@@ -629,15 +629,19 @@ make_triangles() const { //{{{
 
 // Input {{{
 Input::
-Input(std::istream &stars_ipe, std::istream &sites_ipe) { //{{{
-  stars.load_from_ipe(stars_ipe);
-  sites.load_from_ipe(sites_ipe, stars);
+Input(std::istream &stars_ipe, std::istream &sites_ipe, StagesPtr stages) :
+  _stages(stages)
+{ //{{{
+  _stars.load_from_ipe(stars_ipe);
+  _sites.load_from_ipe(sites_ipe, _stars);
+  _stages->push_back({"parsing", clock()});
 
   /* Make sure stars are sufficiently small such that they don't
    * intersect at time t=0
    */
-  RatNT min_site_dist = sites.get_closest_distance_squared();
-  RatNT max_star_size = stars.get_max_vertex_distance_squared();
+  RatNT min_site_dist = _sites.get_closest_distance_squared();
+  RatNT max_star_size = _stars.get_max_vertex_distance_squared();
+  _stages->push_back({"prepreprocessing", clock()});
 
   LOG(INFO) << "min site dist (squared) " << min_site_dist;
   LOG(INFO) << "max star size (squared) " << max_star_size;
@@ -650,28 +654,30 @@ Input(std::istream &stars_ipe, std::istream &sites_ipe) { //{{{
     scalesq *= 4;
   }
   LOG(INFO) << "scaling down stars by a factor of " << scale;
-  stars.shrink(scale);
+  _stars.shrink(scale);
+  _stages->push_back({"preprocessing", clock()});
 } //}}}
 
 bool
 Input::
 do_sk(std::ostream &os, std::string skoffset) const { //{{{
-  SkeletonStructure s( sites.make_surf_input() );
+  SkeletonStructure s( _sites.make_surf_input() );
 
   s.initialize(0 /* restrict component */);
   s.wp.advance_to_end();
 
   const SkeletonDCEL &sk = s.get_skeleton();
-  IpeWriter().write_skeleton(os, sk, sites, skoffset);
+  IpeWriter().write_skeleton(os, sk, _sites, skoffset);
   return true;
 } //}}}
 
 bool
 Input::
 do_vd(std::ostream &os, const RatNT& max_time, std::string skoffset) const { //{{{
-  StarVD vd(sites, stars, max_time);
+  StarVD vd(_sites, _stars, max_time, _stages);
 
-  IpeWriter().write_vd(os, vd, sites, skoffset);
+  IpeWriter().write_vd(os, vd, _sites, skoffset);
+  _stages->push_back( { "output", clock() } );
 
   return vd.is_valid();
 } //}}}

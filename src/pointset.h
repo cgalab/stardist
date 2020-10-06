@@ -20,6 +20,8 @@ class Star {
     RatNT get_min_edge_distance_squared() const;
     // void add_to_distance_set(std::set<CoreNT>& distances) const;
     const std::vector<RatPoint_2>& pts() const { return _pts; };
+    unsigned size() const { return _pts.size(); };
+
     void shrink(const RatNT& scale);
 
     void add_to_input(SurfInput& si, const RatPoint_2& p) const;
@@ -66,9 +68,9 @@ class Site {
     void add_to_input(std::back_insert_iterator<TriangleList> trianglesIt, const int site_idx, const RatNT& max_time) const { shape().add_to_input(trianglesIt, pos(), site_idx, max_time); };
 };
 
-class SiteSet {
+class SiteSet : private std::vector<Site> {
   private:
-    std::vector<Site> sites;
+    using Base = std::vector<Site>;
   public:
     void load_from_ipe(std::istream &ins, const StarSet& stars);
 
@@ -80,15 +82,24 @@ class SiteSet {
     RealTriangleList make_triangles() const; /* of unit height */
     TriangleList make_vd_input(const RatNT& max_time) const;
 
-    const std::vector<Site>& get_sites() const { return sites; };
+    using Base::size;
+    using Base::begin;
+    using Base::end;
+
+    unsigned total_size() const {
+      return accumulate(begin(), end(), 0,
+        [] (unsigned cnt, const Site& s) { return cnt + s.shape().size(); });
+    }
 };
 
 class Input {
   private:
-    StarSet stars;
-    SiteSet sites;
+    StarSet _stars;
+    SiteSet _sites;
+    StagesPtr _stages;
   public:
-    Input(std::istream &stars_ipe, std::istream &sites_ipe);
+    Input(std::istream &stars_ipe, std::istream &sites_ipe, StagesPtr stages);
     bool do_sk(std::ostream &os, std::string skoffset) const;
     bool do_vd(std::ostream &os, const RatNT& max_time, std::string skoffset) const;
+    const SiteSet& sites() const { return _sites; };
 };

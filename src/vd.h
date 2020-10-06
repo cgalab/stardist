@@ -12,8 +12,9 @@ class StarVD {
     bool _is_valid = false;
 
     RatNT _max_time;
+    StagesPtr stages;
   public:
-    StarVD(const SiteSet& sites, const StarSet& stars, const RatNT& max_time);
+    StarVD(const SiteSet& sites, const StarSet& stars, const RatNT& max_time, StagesPtr stages);
 
     bool is_valid() const { return _is_valid; };
     RatNT guess_upper_bound(const SiteSet& sites, const StarSet& stars) const;

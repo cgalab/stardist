@@ -18,6 +18,9 @@
 #include "pointset.h"
 #include "gitversion.h"
 
+#include <boost/iostreams/device/file_descriptor.hpp>
+#include <boost/iostreams/stream.hpp>
+
 static const char* short_options = "hIv:O:";
 static struct option long_options[] = {
   { "help"               , no_argument        , 0, 'h'},
@@ -25,6 +28,7 @@ static struct option long_options[] = {
   { "verbose"            , optional_argument  , 0, 'v'},
   { "sk-offset"          , required_argument  , 0, 'O'},
   { "vd-height"          , required_argument  , 0, 'H'},
+  { "stats-fd"           , required_argument  , 0, 'S'},
   { 0, 0, 0, 0}
 };
 
@@ -49,6 +53,7 @@ usage(const char *progname, int err) {
   fprintf(f,"           --vd           Make a VD instead of a straight skeleton/SEVD.\n");
   fprintf(f,"           --sk-offset=<offset-spec>  Draw offsets.\n");
   fprintf(f,"           --vd-height=<HEIGHT>       Extend upwards surfaces up to HEIGHT.\n");
+  fprintf(f,"           --stats-fd=<FD>            Enable and print statistics to FD.\n");
   fprintf(f,"\n");
   fprintf(f,"        STARSET  .ipe file -- stars are polygons with their center as an IPE marker\n");
   fprintf(f,"        POINTSET .ipe file -- sites are IPE markers\n");
@@ -66,6 +71,7 @@ main(int argc, char *argv[]) {
   unsigned verbose = 0;
   std::string skoffset;
   RatNT vd_height = 0;
+  int stats_fd = -1;
 
   while (1) {
     int option_index = 0;
@@ -100,6 +106,17 @@ main(int argc, char *argv[]) {
 
       case 'O':
         skoffset = std::string(optarg);
+        break;
+
+      case 'S':
+        {
+          char *end_ptr;
+          stats_fd = strtol(optarg, &end_ptr, 10);
+          if (*end_ptr != '\0' || stats_fd < 0) {
+            std::cerr << "Invalid stats-fd " << optarg << "." << std::endl;
+            exit(1);
+          }
+        }
         break;
 
       default:
@@ -153,13 +170,38 @@ main(int argc, char *argv[]) {
   }
 
   bool success;
-  Input input(*starin, *in);
+  StagesPtr stages = std::make_shared<StagesList>();
+  stages->push_back( { "start", clock() } );
+
+  Input input(*starin, *in, stages);
   if (make_vd) {
     success = input.do_vd(*out, vd_height, skoffset);
   } else {
     success = input.do_sk(*out, skoffset);
   }
   out->flush();
+
+  if (stats_fd >= 0) {
+    boost::iostreams::file_descriptor_sink snk{stats_fd, boost::iostreams::never_close_handle};
+    boost::iostreams::stream< boost::iostreams::file_descriptor_sink> stats_os{snk};
+    stats_os << std::setprecision(10);
+    stats_os << "[STAR] NUM_SITES " << input.sites().size() << std::endl;
+    stats_os << "[STAR] SIZE " << input.sites().total_size() << std::endl;
+
+    clock_t first, prev;
+    first = prev = (*stages)[0].second;
+    auto it = stages->begin();
+    while ((++it) != stages->end()) {
+      stats_os << "[STAR] CPUTIME_" << std::setw(30) << std::left << it->first;
+      stats_os << " " << std::fixed
+        << ((double) (it->second - first))/CLOCKS_PER_SEC << " "
+        << ((double) (it->second - prev ))/CLOCKS_PER_SEC << std::endl;
+      prev = it->second;
+    }
+
+    stats_os.flush();
+  }
+
 
   exit(success ? 0 : 1);
 }

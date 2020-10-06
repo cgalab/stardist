@@ -14,6 +14,8 @@ using RatNT = CORE::BigRat;
 #include <CGAL/Env_surface_data_traits_3.h>
 #include <CGAL/envelope_3.h>
 
+#include <memory>
+#include <time.h>
 #include <vector>
 
 #include "easyloggingpp/src/easylogging++.h"
@@ -64,3 +66,6 @@ inline CorePoint_2
 Rat2Core(const RatPoint_2& p) {
   return CorePoint_2(p.x(), p.y());
 }
+
+using StagesList = std::vector< std::pair<std::string, clock_t> >;
+using StagesPtr = std::shared_ptr< StagesList >;
