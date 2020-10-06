@@ -3,12 +3,6 @@ project (stardist)
 
 set_source_files_properties(easyloggingpp/src/easylogging++.cc PROPERTIES COMPILE_FLAGS "-Wno-float-equal -Wno-missing-noreturn")
 
-find_package( Boost REQUIRED iostreams )
-if ( NOT Boost_FOUND )
-  message(FATAL_ERROR "Boost not found.")
-endif()
-include_directories(${Boost_INCLUDE_DIRS})
-
 find_package( CGAL COMPONENTS Core )
 if ( NOT CGAL_FOUND )
   message(FATAL_ERROR "CGAL not found.")
@@ -40,6 +34,13 @@ if ( NOT SURF_INCLUDE )
 endif()
 include_directories("${SURF_INCLUDE}" "${SURF_INCLUDE}/../src" "${SURF_LIBRARY_PATH}" "${SURF_LIBRARY_PATH}/..")
 
+find_package( Boost REQUIRED COMPONENTS system iostreams )
+if ( NOT Boost_FOUND )
+  message(FATAL_ERROR "Boost not found.")
+endif()
+include_directories(${Boost_INCLUDE_DIRS})
+
+
 add_executable(stardist
                   stardist.cpp
 
@@ -53,8 +54,8 @@ add_executable(stardist
                )
 
 target_link_libraries(stardist ${SURF_LIBRARY})
-target_link_libraries(stardist ${Boost_LIBRARIES} )
 target_link_libraries(stardist ${CGAL_LIBRARIES})
+target_link_libraries(stardist ${Boost_LIBRARIES} )
 target_link_libraries(stardist pugixml)
 
 
