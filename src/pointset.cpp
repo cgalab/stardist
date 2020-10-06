@@ -636,6 +636,12 @@ Input(std::istream &stars_ipe, std::istream &sites_ipe, StagesPtr stages) :
   _sites.load_from_ipe(sites_ipe, _stars);
   _stages->push_back({"parsing", clock()});
 
+  preprocess();
+} //}}}
+
+void
+Input::
+preprocess() { //{{{
   /* Make sure stars are sufficiently small such that they don't
    * intersect at time t=0
    */

@@ -97,6 +97,8 @@ class Input {
     StarSet _stars;
     SiteSet _sites;
     StagesPtr _stages;
+
+    void preprocess();
   public:
     Input(std::istream &stars_ipe, std::istream &sites_ipe, StagesPtr stages);
     bool do_sk(std::ostream &os, std::string skoffset) const;
