@@ -612,21 +612,77 @@ shrink(const RatNT& scale) { //{{{
 
 // Site {{{
 Site
-Site::from_ipe_element(const pugi::xml_node& node, const StarSet& stars) { //{{{
-  IpeMarker m(node);
-
-  const auto star_it = stars.find(m.stroke());
+Site::from_pos_and_shapename(const RatPoint_2& pos, const std::string& shape, const StarSet& stars) { //{{{
+  const auto star_it = stars.find(shape);
   if (star_it == stars.end()) {
-    LOG(ERROR) << "No star found for marker " << node2str(node);
+    LOG(ERROR) << "No star found for shape " << shape;
     exit(1);
   }
 
-  return Site(m.pos(), star_it);
+  return Site(pos, star_it);
+} //}}}
+
+Site
+Site::from_ipe_element(const pugi::xml_node& node, const StarSet& stars) { //{{{
+  IpeMarker m(node);
+  return from_pos_and_shapename(m.pos(), m.stroke(), stars);
 } //}}}
 
 //}}}
 
 // SiteSet {{{
+Site
+SiteSet::
+get_one_from_line(const std::string& line, const StarSet& stars) { //{{{
+  std::string x, y, shape;
+  std::istringstream iss(line);
+
+  iss >> x >> y;
+  if (iss.fail()) {
+    LOG(ERROR) << "Error: parsing input line: " << line;
+    exit(1);
+  };
+
+  RatPoint_2 p(string2RatNT(x), string2RatNT(y));
+  iss >> shape;
+  if (iss.fail()) { /* Use a random shape */
+    return Site(p, select_randomly(stars.begin(), stars.end()));
+  } else {
+    return Site::from_pos_and_shapename(p, shape, stars);
+  }
+} //}}}
+
+void
+SiteSet::
+load_from_pnt(std::istream &ins, const StarSet& stars) { //{{{
+  std::string line;
+
+  while (std::getline(ins, line)) {
+    emplace_back(get_one_from_line(line, stars));
+  }
+} //}}}
+
+void
+SiteSet::
+load_from_line(std::istream &ins, const StarSet& stars) { //{{{
+  std::string line;
+  std::getline(ins, line);
+  std::istringstream iss(line);
+
+  unsigned numpts;
+  iss >> numpts;
+  reserve(numpts);
+
+  while (std::getline(ins, line)) {
+    Site s = get_one_from_line(line, stars);
+    if ((size() > 0) && (size() == numpts - 1) && (s.pos() == front().pos())) {
+      LOG(INFO) << "Not adding last point as it is the same as the first point.";
+    } else {
+      emplace_back(s);
+    }
+  }
+} //}}}
+
 void
 SiteSet::
 load_from_ipe(std::istream &ins, const StarSet& stars) { //{{{
@@ -721,7 +777,7 @@ make_triangles() const { //{{{
 
 // Input {{{
 Input::
-Input(const std::string &stars_fn, const std::string &sites_fn, StagesPtr stages) :
+Input(const std::string &stars_fn, const std::string &sites_fn, SiteFormat site_fmt, StagesPtr stages) :
   _stages(stages)
 { //{{{
 
@@ -739,6 +795,13 @@ Input(const std::string &stars_fn, const std::string &sites_fn, StagesPtr stages
     _stars.load_from_ipe(*stars_ins);
   }
 
+  if (site_fmt == SiteFormat::guess) {
+    std::filesystem::path p(sites_fn);
+    if (p.extension() == ".line") site_fmt = SiteFormat::line;
+    else if (p.extension() == ".pnt") site_fmt = SiteFormat::pnt;
+    else site_fmt = SiteFormat::ipe;
+  }
+
   std::istream *sites_ins;
   std::ifstream sites_streamin;
   if (sites_fn == "-") {
@@ -748,7 +811,21 @@ Input(const std::string &stars_fn, const std::string &sites_fn, StagesPtr stages
     sites_ins = &sites_streamin;
   }
 
-  _sites.load_from_ipe(*sites_ins, _stars);
+  switch (site_fmt) {
+    case SiteFormat::line:
+      _sites.load_from_line(*sites_ins, _stars);
+      break;
+    case SiteFormat::pnt:
+      _sites.load_from_pnt(*sites_ins, _stars);
+      break;
+    case SiteFormat::ipe:
+      _sites.load_from_ipe(*sites_ins, _stars);
+      break;
+    case SiteFormat::guess:
+    default:
+      LOG(ERROR) << "Unexpected site_fmt.";
+      exit(1);
+  };
   _stages->push_back({"PARSING", clock()});
 
   preprocess();

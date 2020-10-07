@@ -45,6 +45,7 @@ class StarSet : private std::unordered_map<std::string, Star> {
     void load_lines_from_dir(const std::string& dir);
 
     using Base::find;
+    using Base::begin;
     using Base::end;
 
     RatNT get_max_vertex_distance_squared() const;
@@ -62,6 +63,7 @@ class Site {
       , _shape(shape)
     {};
 
+    static Site from_pos_and_shapename(const RatPoint_2& pos, const std::string& shape, const StarSet& stars);
     static Site from_ipe_element(const pugi::xml_node& node, const StarSet& stars);
     const RatPoint_2& pos() const { return _pos; };
     const Star& shape() const { return _shape->second; };
@@ -76,7 +78,10 @@ class Site {
 class SiteSet : private std::vector<Site> {
   private:
     using Base = std::vector<Site>;
+    Site get_one_from_line(const std::string& line, const StarSet& stars);
   public:
+    void load_from_pnt(std::istream &ins, const StarSet& stars);
+    void load_from_line(std::istream &ins, const StarSet& stars);
     void load_from_ipe(std::istream &ins, const StarSet& stars);
 
     RatNT get_closest_distance_squared() const;
@@ -105,7 +110,7 @@ class Input {
 
     void preprocess();
   public:
-    Input(const std::string &stars_fn, const std::string &sites_fn, StagesPtr stages);
+    Input(const std::string &stars_fn, const std::string &sites_fn, SiteFormat site_fmt, StagesPtr stages);
     bool do_sk(std::ostream &os, std::string skoffset) const;
     bool do_vd(std::ostream &os, const RatNT& max_time, std::string skoffset) const;
     const SiteSet& sites() const { return _sites; };

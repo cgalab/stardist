@@ -21,7 +21,7 @@
 #include <boost/iostreams/device/file_descriptor.hpp>
 #include <boost/iostreams/stream.hpp>
 
-static const char* short_options = "hIv:O:";
+static const char* short_options = "hv";
 static struct option long_options[] = {
   { "help"               , no_argument        , 0, 'h'},
   { "vd"                 , no_argument        , 0, 'V'},
@@ -29,6 +29,7 @@ static struct option long_options[] = {
   { "sk-offset"          , required_argument  , 0, 'O'},
   { "vd-height"          , required_argument  , 0, 'H'},
   { "stats-fd"           , required_argument  , 0, 'S'},
+  { "site-format"        , required_argument  , 0, 'F'},
   { 0, 0, 0, 0}
 };
 
@@ -54,10 +55,12 @@ usage(const char *progname, int err) {
   fprintf(f,"           --sk-offset=<offset-spec>  Draw offsets.\n");
   fprintf(f,"           --vd-height=<HEIGHT>       Extend upwards surfaces up to HEIGHT.\n");
   fprintf(f,"           --stats-fd=<FD>            Enable and print statistics to FD.\n");
+  fprintf(f,"           --site-format=(GUESS|IPE|LINE|PNT) site(pointset) format.\n");
   fprintf(f,"\n");
   fprintf(f,"        STARSET  .ipe file -- stars are polygons with their center as an IPE marker\n");
   fprintf(f,"            (or) directory -- stars are files as .line with their center at the origin\n");
   fprintf(f,"        POINTSET .ipe file -- sites are IPE markers\n");
+  fprintf(f,"            if .line or .pnt: star is picked randomly if not provided as 3rd attribute\n");
   fprintf(f,"\n");
   fprintf(f,"  offset-spec = <one-block> [ ',' <one-block> [ ',' ... ] ]\n");
   fprintf(f,"  one-block   = <one-offset> [ '+' <one-offset> [ '+' ... ] ]\n");
@@ -73,6 +76,7 @@ main(int argc, char *argv[]) {
   std::string skoffset;
   RatNT vd_height = 0;
   int stats_fd = -1;
+  SiteFormat site_fmt = SiteFormat::guess;
 
   while (1) {
     int option_index = 0;
@@ -120,6 +124,20 @@ main(int argc, char *argv[]) {
         }
         break;
 
+      case 'F':
+        {
+          std::string fmt(optarg);
+          if (fmt == "GUESS") site_fmt = SiteFormat::guess;
+          else if (fmt == "IPE") site_fmt = SiteFormat::ipe;
+          else if (fmt == "LINE") site_fmt = SiteFormat::line;
+          else if (fmt == "PNT") site_fmt = SiteFormat::pnt;
+          else {
+            std::cerr << "Invalid site format " << fmt << std::endl;
+            exit(1);
+          }
+        }
+        break;
+
       default:
         std::cerr << "Invalid option " << (char)r << std::endl;
         exit(1);
@@ -157,7 +175,7 @@ main(int argc, char *argv[]) {
   StagesPtr stages = std::make_shared<StagesList>();
   stages->push_back( { "start", clock() } );
 
-  Input input(stars_fn, sites_fn, stages);
+  Input input(stars_fn, sites_fn, site_fmt, stages);
   if (make_vd) {
     success = input.do_vd(*out, vd_height, skoffset);
   } else {
