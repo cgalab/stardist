@@ -158,7 +158,7 @@ IpeWriter::write_vd_arrangement_faces(std::ostream& os, const StarVD& vd) { //{{
   }
 
   std::uniform_real_distribution<> dist(0, 1);
-  auto& generator = RandomGenerator().get_generator();
+  std::mt19937 generator(0);
   for (const auto& r : regions) {
     std::stringstream stroke;
     stroke << "layer=\"faces\" fill=\""
