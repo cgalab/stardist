@@ -46,7 +46,7 @@ check_sufficiently_far_approximately() { //{{{
    * incident to the unbounded face.
    */
   for (auto eit = _arr.edges_begin(); eit != _arr.edges_end(); ++eit) {
-    if (eit->number_of_surfaces() == 2) {
+    if (eit->number_of_surfaces() >= 2) {
       continue;
     } else if (eit->number_of_surfaces() != 1) {
       LOG(ERROR) << "Unexpected number of incident surfaces (" << eit->number_of_surfaces() << ")";

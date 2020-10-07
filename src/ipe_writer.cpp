@@ -264,8 +264,10 @@ write_vd(std::ostream& os, const StarVD& vd, const SiteSet& sites, const std::st
       assert(surfaces == eit->surfaces_end());
 
       arcs[site_idx_1 != site_idx_2].push_back(s);
+    } else if (eit->number_of_surfaces() > 2) {
+      arcs[1].push_back(s);
     } else {
-      LOG(ERROR) << "Unexpected number of incident surfaces";
+      LOG(ERROR) << "Unexpected number of incident surfaces (0)";
       exit(1);
     }
   }
