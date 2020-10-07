@@ -1,6 +1,7 @@
 #include "pointset.h"
 
 #include <sstream>
+#include <filesystem>
 
 #include <CGAL/Delaunay_triangulation_2.h>
 
@@ -17,27 +18,47 @@ node2str(const pugi::xml_node& node) { //{{{
   return ss.str();
 } //}}}
 
+static RatNT
+string2IntegerRatNT(const std::string& s) { //{{{
+  RatNT n;
+  int failed = n.set_str(s.c_str());
+  if (failed) {
+    LOG(ERROR) << "Could not interpret string as number: " << s;
+    exit(1);
+  }
+  return n;
+} //}}}
+
 RatNT
 string2RatNT(const std::string& s) { //{{{
   /** Build a rational number from string s.
    *
    * For some reason, CGAL's rational numbers can't parse decimal strings like 3.14.
    */
-  // LOG(DEBUG) << "dealing with " << s;
+  //LOG(DEBUG) << "dealing with " << s;
   RatNT n;
   size_t pos = s.find('.');
   if (pos == std::string::npos) {
-    n = RatNT(s);
+    n = string2IntegerRatNT(s);
   } else {
-    n = RatNT(s.substr(0,pos));
+    n = string2IntegerRatNT(s.substr(0,pos));
     std::string fractional = s.substr(pos+1);
-    RatNT f(fractional);
+
+    pos = 0;
+    while (pos < s.length() && fractional[pos] == '0') {
+      ++pos;
+    };
+    RatNT f = string2IntegerRatNT(fractional.substr(pos));
     for (unsigned i=0; i<fractional.length(); ++i) {
       f /= 10;
     };
     n += f;
   }
-  // LOG(DEBUG) << " got " << n;
+  if (s[0] == '-') {
+    n *= -1;
+  };
+
+  //LOG(DEBUG) << std::setprecision(8) << LOG(DEBUG) << " got " << CGAL::to_double(n) << " aka " << n;
   return n;
 } //}}}
 
@@ -260,16 +281,57 @@ Star(const std::vector<RatPoint_2> pts, const RatPoint_2& center, const std::str
     _pts.emplace_back(p - c);
   };
 
+  verify_star(stroke);
+} //}}}
+
+Star::
+Star(std::istream& ins, const std::string& fn) { //{{{
+/** Load from .line file */
+  unsigned numpts;
+  ins >> numpts;
+  if (numpts < 3) {
+    LOG(ERROR) << "Too few vertices in star " << fn << ".";
+    exit(1);
+  }
+  _pts.reserve(numpts);
+
+  std::string x, y;
+  while (ins >> x >> y) {
+    RatPoint_2 p(string2RatNT(x), string2RatNT(y));
+    _pts.emplace_back(p);
+  }
+  if (numpts != _pts.size()) {
+    LOG(ERROR) << "Inconsistent number of points: expected " << numpts << " but got " << _pts.size();
+    exit(1);
+  }
+  if (_pts.front() != _pts.back()) {
+    LOG(WARNING) << "Star from line file " << fn << " is not a closed polygon.";
+  } else {
+    _pts.pop_back();
+  }
+  verify_star(fn);
+} //}}}
+
+void
+Star::
+verify_star(const std::string& name) { //{{{
   RatVector_2 prev_dir(CGAL::ORIGIN, _pts.back());
+  int cnt = 0;
   for (auto p : _pts) {
     RatVector_2 dir( CGAL::ORIGIN, p);
 
     auto o = CGAL::orientation(prev_dir, dir);
     if (o != CGAL::LEFT_TURN) {
-      LOG(ERROR) << "Input shape " << stroke << " is not (strictly) star-shaped.";
+      LOG(ERROR) << "Input shape " << name << " is not (strictly) star-shaped or oriented incorrectly.";
+      LOG(ERROR) << "  Indices: (" << (cnt-1) << ", " << cnt << "); ";
+      LOG(ERROR) << "  pts: "
+        << "(" << CGAL::to_double(prev_dir.x()) << ", " << CGAL::to_double(prev_dir.y()) << ")"
+        << "; "
+        << "(" << CGAL::to_double(dir     .x()) << ", " << CGAL::to_double(dir     .y()) << ")";
       exit(1);
     }
     prev_dir = dir;
+    ++cnt;
   }
 } //}}}
 
@@ -407,7 +469,7 @@ add_to_input(std::back_insert_iterator<TriangleList> trianglesIt, const RatPoint
 // StarSet {{{
 void
 StarSet::
-load_from_ipe(std::istream &ins) { //{{{
+load_from_ipe(std::istream& ins) { //{{{
   pugi::xml_document doc;
   pugi::xml_parse_result result = doc.load(ins);
 
@@ -445,6 +507,36 @@ load_from_ipe(std::istream &ins) { //{{{
   if (size() != centers.size()) {
     LOG(WARNING) << "Different number of centers and polygons.";
   }
+}
+//}}}
+void
+StarSet::
+load_lines_from_dir(const std::string& dir) { //{{{
+  bool loaded_at_least_one = false;
+  for (const auto& ent : std::filesystem::directory_iterator(dir)) {
+    if (ent.path().extension() != ".line") {
+      LOG(WARNING) << "Skipping " << ent.path() << " (We only want .line files)";
+      continue;
+    }
+
+    LOG(INFO) << "Looking at " << ent.path();
+    std::ifstream f(ent.path());
+    if (!f.is_open()) {
+      LOG(WARNING) << "Cannot open " << ent.path();
+      continue;
+    }
+
+    Star star(f, ent.path());
+    auto [_, success ] = insert( {ent.path().stem(), star} );
+    assert(success);
+
+    loaded_at_least_one = true;
+  }
+
+  if (! loaded_at_least_one) {
+    LOG(ERROR) << "No stars loaded from " << dir;
+    exit(1);
+  };
 }
 //}}}
 
@@ -629,12 +721,35 @@ make_triangles() const { //{{{
 
 // Input {{{
 Input::
-Input(std::istream &stars_ipe, std::istream &sites_ipe, StagesPtr stages) :
+Input(const std::string &stars_fn, const std::string &sites_fn, StagesPtr stages) :
   _stages(stages)
 { //{{{
-  _stars.load_from_ipe(stars_ipe);
-  _sites.load_from_ipe(sites_ipe, _stars);
-  _stages->push_back({"parsing", clock()});
+
+  if (std::filesystem::is_directory(stars_fn)) {
+    _stars.load_lines_from_dir(stars_fn);
+  } else {
+    std::istream *stars_ins;
+    std::ifstream stars_streamin;
+    if (stars_fn == "-") {
+      stars_ins = &std::cin;
+    } else {
+      stars_streamin.open(stars_fn);
+      stars_ins = &stars_streamin;
+    }
+    _stars.load_from_ipe(*stars_ins);
+  }
+
+  std::istream *sites_ins;
+  std::ifstream sites_streamin;
+  if (sites_fn == "-") {
+    sites_ins = &std::cin;
+  } else {
+    sites_streamin.open(sites_fn);
+    sites_ins = &sites_streamin;
+  }
+
+  _sites.load_from_ipe(*sites_ins, _stars);
+  _stages->push_back({"PARSING", clock()});
 
   preprocess();
 } //}}}
@@ -661,7 +776,7 @@ preprocess() { //{{{
   }
   LOG(INFO) << "scaling down stars by a factor of " << scale;
   _stars.shrink(scale);
-  _stages->push_back({"preprocessing", clock()});
+  _stages->push_back({"PREPROCESSING", clock()});
 } //}}}
 
 bool

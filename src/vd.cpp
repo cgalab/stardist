@@ -267,6 +267,7 @@ StarVD(const SiteSet& sites, const StarSet& stars, const RatNT& max_time, Stages
   : _max_time(max_time)
   , stages(stages_p)
 {
+  stages->push_back( { "VD_START", clock() } );
   if (_max_time == 0) {
     _max_time = guess_upper_bound(sites, stars);
     stages->push_back( { "guess_upper", clock() } );
@@ -274,6 +275,7 @@ StarVD(const SiteSet& sites, const StarSet& stars, const RatNT& max_time, Stages
     LOG(INFO) << "Using time upper-bound (estimate) of " << _max_time;
     stages->push_back( { "find_pierce", clock() } );
   };
+  stages->push_back( { "VD_PREP_DONE", clock() } );
 
   LOG(DEBUG) << " preparing triangles";
   _triangles = sites.make_vd_input(_max_time);
@@ -281,6 +283,7 @@ StarVD(const SiteSet& sites, const StarSet& stars, const RatNT& max_time, Stages
   LOG(DEBUG) << " computing lower envelope";
   CGAL::lower_envelope_3 (_triangles.begin(), _triangles.end(), _arr);
   stages->push_back( { "make_envelope", clock() } );
+  stages->push_back( { "VD_VD_DONE", clock() } );
 
   LOG(DEBUG) << " verifying";
   _is_valid = check_sufficiently_far_approximately();

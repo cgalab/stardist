@@ -14,8 +14,12 @@ class SurfInput;
 class Star {
   private:
     std::vector<RatPoint_2> _pts;
+
+    void verify_star(const std::string& name);
   public:
     Star(const std::vector<RatPoint_2> pts, const RatPoint_2& center, const std::string& stroke /* for logging/warning purposes only */);
+    Star(std::istream& ins, const std::string& fn);
+
     RatNT get_max_vertex_distance_squared() const;
     RatNT get_min_edge_distance_squared() const;
     // void add_to_distance_set(std::set<CoreNT>& distances) const;
@@ -37,7 +41,8 @@ class StarSet : private std::unordered_map<std::string, Star> {
   public:
     using It = Base::const_iterator;
 
-    void load_from_ipe(std::istream &ins);
+    void load_from_ipe(std::istream& ins);
+    void load_lines_from_dir(const std::string& dir);
 
     using Base::find;
     using Base::end;
@@ -100,7 +105,7 @@ class Input {
 
     void preprocess();
   public:
-    Input(std::istream &stars_ipe, std::istream &sites_ipe, StagesPtr stages);
+    Input(const std::string &stars_fn, const std::string &sites_fn, StagesPtr stages);
     bool do_sk(std::ostream &os, std::string skoffset) const;
     bool do_vd(std::ostream &os, const RatNT& max_time, std::string skoffset) const;
     const SiteSet& sites() const { return _sites; };

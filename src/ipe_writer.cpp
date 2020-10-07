@@ -228,6 +228,9 @@ IpeWriter::
 write_vd(std::ostream& os, const StarVD& vd, const SiteSet& sites, const std::string& offset_spec) { //{{{
   const Envelope_diagram_2& diag = vd.arr();
 
+  std::streamsize stored_precision = os.precision();
+  os << std::setprecision(15);
+
   write_header(os);
   os << "<layer name=\"vd-boundary\" />\n"
         "<layer name=\"vd0\" />\n"
@@ -272,6 +275,8 @@ write_vd(std::ostream& os, const StarVD& vd, const SiteSet& sites, const std::st
 
   write_sites(os, sites);
   write_footer(os);
+
+  os << std::setprecision(stored_precision);
 }
 
 // vim:set fdm=marker:

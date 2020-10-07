@@ -56,6 +56,7 @@ usage(const char *progname, int err) {
   fprintf(f,"           --stats-fd=<FD>            Enable and print statistics to FD.\n");
   fprintf(f,"\n");
   fprintf(f,"        STARSET  .ipe file -- stars are polygons with their center as an IPE marker\n");
+  fprintf(f,"            (or) directory -- stars are files as .line with their center at the origin\n");
   fprintf(f,"        POINTSET .ipe file -- sites are IPE markers\n");
   fprintf(f,"\n");
   fprintf(f,"  offset-spec = <one-block> [ ',' <one-block> [ ',' ... ] ]\n");
@@ -139,25 +140,8 @@ main(int argc, char *argv[]) {
     usage(argv[0], 1);
   }
 
-  std::istream *starin = &std::cin;
-  std::ifstream starstreamin;
-  {
-    std::string fn(argv[optind + 0]);
-    if (fn != "-") {
-      starstreamin.open(fn);
-      starin = &starstreamin;
-    }
-  }
-
-  std::istream *in = &std::cin;
-  std::ifstream filestreamin;
-  if (argc - optind >= 2) {
-    std::string fn(argv[optind + 1]);
-    if (fn != "-") {
-      filestreamin.open(fn);
-      in = &filestreamin;
-    }
-  }
+  std::string stars_fn(argv[optind + 0]);
+  std::string sites_fn(argc - optind >= 2 ? argv[optind + 1] : "-");
 
   std::ostream *out = &std::cout;
   std::ofstream filestreamout;
@@ -173,7 +157,7 @@ main(int argc, char *argv[]) {
   StagesPtr stages = std::make_shared<StagesList>();
   stages->push_back( { "start", clock() } );
 
-  Input input(*starin, *in, stages);
+  Input input(stars_fn, sites_fn, stages);
   if (make_vd) {
     success = input.do_vd(*out, vd_height, skoffset);
   } else {

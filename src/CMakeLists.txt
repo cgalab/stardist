@@ -57,6 +57,7 @@ target_link_libraries(stardist ${SURF_LIBRARY})
 target_link_libraries(stardist ${CGAL_LIBRARIES})
 target_link_libraries(stardist ${Boost_LIBRARIES} )
 target_link_libraries(stardist pugixml)
+target_link_libraries(stardist stdc++fs)
 
 
 message("CMAKE_BUILD_TYPE is ${CMAKE_BUILD_TYPE}. CGAL_USE_FILE is ${CGAL_USE_FILE}" )
