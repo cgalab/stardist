@@ -30,6 +30,7 @@ static struct option long_options[] = {
   { "vd-height"          , required_argument  , 0, 'H'},
   { "stats-fd"           , required_argument  , 0, 'S'},
   { "site-format"        , required_argument  , 0, 'F'},
+  { "random-scale"       , required_argument  , 0, 'R'},
   { 0, 0, 0, 0}
 };
 
@@ -56,6 +57,7 @@ usage(const char *progname, int err) {
   fprintf(f,"           --vd-height=<HEIGHT>       Extend upwards surfaces up to HEIGHT.\n");
   fprintf(f,"           --stats-fd=<FD>            Enable and print statistics to FD.\n");
   fprintf(f,"           --site-format=(GUESS|IPE|LINE|PNT) site(pointset) format.\n");
+  fprintf(f,"           --random-scale=sigma       Scale stars by e^X where X is a random number from N(0,sigma)\n");
   fprintf(f,"\n");
   fprintf(f,"        STARSET  .ipe file -- stars are polygons with their center as an IPE marker\n");
   fprintf(f,"            (or) directory -- stars are files as .line with their center at the origin\n");
@@ -77,6 +79,7 @@ main(int argc, char *argv[]) {
   RatNT vd_height = 0;
   int stats_fd = -1;
   SiteFormat site_fmt = SiteFormat::guess;
+  double random_scale_sigma = 0;
 
   while (1) {
     int option_index = 0;
@@ -138,6 +141,17 @@ main(int argc, char *argv[]) {
         }
         break;
 
+      case 'R':
+        {
+          char *end_ptr;
+          random_scale_sigma = strtod(optarg, &end_ptr);
+          if (*end_ptr != '\0') {
+            std::cerr << "Invalid random scale value" << optarg << std::endl;
+            exit(1);
+          }
+        }
+        break;
+
       default:
         std::cerr << "Invalid option " << (char)r << std::endl;
         exit(1);
@@ -175,7 +189,7 @@ main(int argc, char *argv[]) {
   StagesPtr stages = std::make_shared<StagesList>();
   stages->push_back( { "start", clock() } );
 
-  Input input(stars_fn, sites_fn, site_fmt, stages);
+  Input input(stars_fn, sites_fn, random_scale_sigma, site_fmt, stages);
   if (make_vd) {
     success = input.do_vd(*out, vd_height, skoffset);
   } else {

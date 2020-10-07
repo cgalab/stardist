@@ -49,7 +49,7 @@ check_sufficiently_far_approximately() { //{{{
     if (eit->number_of_surfaces() == 2) {
       continue;
     } else if (eit->number_of_surfaces() != 1) {
-      LOG(ERROR) << "Unexpected number of incident surfaces";
+      LOG(ERROR) << "Unexpected number of incident surfaces (" << eit->number_of_surfaces() << ")";
       exit(1);
     };
     if (! eit->face()->is_unbounded() &&

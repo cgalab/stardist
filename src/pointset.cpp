@@ -2,6 +2,7 @@
 
 #include <sstream>
 #include <filesystem>
+#include <random>
 
 #include <CGAL/Delaunay_triangulation_2.h>
 
@@ -393,9 +394,9 @@ add_to_distance_set(std::set<CoreNT>& distances) const {
 
 void
 Star::
-shrink(const RatNT& scale) { //{{{
+scale(const RatNT& scale) { //{{{
   for (auto &p : _pts) {
-    p = RatPoint_2(p.x() / scale, p.y() / scale);
+    p = RatPoint_2(p.x() * scale, p.y() * scale);
   }
 }
 //}}}
@@ -601,14 +602,24 @@ get_closest_distance() const { //{{{
 
 void
 StarSet::
-shrink(const RatNT& scale) { //{{{
+scale_random(double random_scale_sigma) { //{{{
+  std::default_random_engine generator;
+  std::normal_distribution<double> distribution(0, random_scale_sigma);
   for (auto &s : *this) {
-    s.second.shrink(scale);
+    double number = distribution(generator);
+    double exp_scale = exp(number);
+    s.second.scale(RatNT(exp_scale));
   }
-}
-//}}}
+} //}}}
 
-//}}}
+
+void
+StarSet::
+scale(const RatNT& scale) { //{{{
+  for (auto &s : *this) {
+    s.second.scale(scale);
+  }
+} //}}}
 
 // Site {{{
 Site
@@ -777,7 +788,7 @@ make_triangles() const { //{{{
 
 // Input {{{
 Input::
-Input(const std::string &stars_fn, const std::string &sites_fn, SiteFormat site_fmt, StagesPtr stages) :
+Input(const std::string &stars_fn, const std::string &sites_fn, double random_scale, SiteFormat site_fmt, StagesPtr stages) :
   _stages(stages)
 { //{{{
 
@@ -794,6 +805,7 @@ Input(const std::string &stars_fn, const std::string &sites_fn, SiteFormat site_
     }
     _stars.load_from_ipe(*stars_ins);
   }
+  _stars.scale_random(random_scale);
 
   if (site_fmt == SiteFormat::guess) {
     std::filesystem::path p(sites_fn);
@@ -848,11 +860,11 @@ preprocess() { //{{{
   RatNT scalesq = 1;
   while (max_star_size * 4 >= min_site_dist * scalesq) {
     LOG(INFO) << "trying with scale " << scale;
-    scale   *= 2;
+    scale   /= 2;
     scalesq *= 4;
   }
-  LOG(INFO) << "scaling down stars by a factor of " << scale;
-  _stars.shrink(scale);
+  LOG(INFO) << "scaling stars by a factor of " << scale;
+  _stars.scale(scale);
   _stages->push_back({"PREPROCESSING", clock()});
 } //}}}
 

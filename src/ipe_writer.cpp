@@ -94,8 +94,12 @@ write_sites(std::ostream& os, const SiteSet& sites) { //{{{
   for (const auto& site : sites) {
     os << "<use name=\"mark/disk(sx)\" pos=\""
        << CGAL::to_double(site.pos().x()) << " " << CGAL::to_double(site.pos().y())
-       << "\" size=\"normal\" stroke=\"black\"/>";
+       << "\" size=\"normal\" stroke=\"black\"/>\n";
+  };
+  os << "</group>\n";
 
+  os << "<group layer=\"input\">\n";
+  for (const auto& site : sites) {
     const Star& shape = site.shape();
     RatVector_2 site_pos(site.pos().x(), site.pos().y());
 

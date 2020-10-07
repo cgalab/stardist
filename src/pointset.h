@@ -26,7 +26,7 @@ class Star {
     const std::vector<RatPoint_2>& pts() const { return _pts; };
     unsigned size() const { return _pts.size(); };
 
-    void shrink(const RatNT& scale);
+    void scale(const RatNT& scale);
 
     void add_to_input(SurfInput& si, const RatPoint_2& p) const;
 
@@ -50,7 +50,8 @@ class StarSet : private std::unordered_map<std::string, Star> {
 
     RatNT get_max_vertex_distance_squared() const;
     RatNT get_min_edge_distance_squared() const;
-    void shrink(const RatNT& scale);
+    void scale(const RatNT& scale);
+    void scale_random(double random_scale_sigma);
 };
 
 class Site {
@@ -110,7 +111,7 @@ class Input {
 
     void preprocess();
   public:
-    Input(const std::string &stars_fn, const std::string &sites_fn, SiteFormat site_fmt, StagesPtr stages);
+    Input(const std::string &stars_fn, const std::string &sites_fn, double random_scale_sigma, SiteFormat site_fmt, StagesPtr stages);
     bool do_sk(std::ostream &os, std::string skoffset) const;
     bool do_vd(std::ostream &os, const RatNT& max_time, std::string skoffset) const;
     const SiteSet& sites() const { return _sites; };
