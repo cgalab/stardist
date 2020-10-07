@@ -603,7 +603,7 @@ get_closest_distance() const { //{{{
 void
 StarSet::
 scale_random(double random_scale_sigma) { //{{{
-  std::default_random_engine generator;
+  auto& generator = RandomGenerator().get_generator();
   std::normal_distribution<double> distribution(0, random_scale_sigma);
   for (auto &s : *this) {
     double number = distribution(generator);

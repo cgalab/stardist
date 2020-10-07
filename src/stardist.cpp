@@ -31,9 +31,11 @@ static struct option long_options[] = {
   { "stats-fd"           , required_argument  , 0, 'S'},
   { "site-format"        , required_argument  , 0, 'F'},
   { "random-scale"       , required_argument  , 0, 'R'},
+  { "random-seed"        , required_argument  , 0, 'X'},
   { 0, 0, 0, 0}
 };
 
+std::unique_ptr<std::mt19937> RandomGenerator::g = NULL;
 
 static void
 star_setup_logging(int argc, char* argv[]) {
@@ -149,6 +151,18 @@ main(int argc, char *argv[]) {
             std::cerr << "Invalid random scale value" << optarg << std::endl;
             exit(1);
           }
+        }
+        break;
+
+      case 'X':
+        {
+          char *end_ptr;
+          int random_seed = strtol(optarg, &end_ptr, 10);
+          if (*end_ptr != '\0') {
+            std::cerr << "Invalid random seed value" << optarg << std::endl;
+            exit(1);
+          }
+          RandomGenerator().init_rnd(random_seed);
         }
         break;
 

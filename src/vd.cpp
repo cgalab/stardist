@@ -272,7 +272,7 @@ StarVD(const SiteSet& sites, const StarSet& stars, const RatNT& max_time, Stages
     _max_time = guess_upper_bound(sites, stars);
     stages->push_back( { "guess_upper", clock() } );
     _max_time = std::max(_max_time, find_last_pierce_event(sites, stars));
-    LOG(INFO) << "Using time upper-bound (estimate) of " << _max_time;
+    LOG(INFO) << "Using time upper-bound (estimate) of " << CGAL::to_double(_max_time);
     stages->push_back( { "find_pierce", clock() } );
   };
   stages->push_back( { "VD_PREP_DONE", clock() } );

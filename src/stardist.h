@@ -81,6 +81,22 @@ enum class SiteFormat { guess, ipe, line, pnt };
 #include  <random>
 #include  <iterator>
 
+class RandomGenerator {
+  private:
+    static std::unique_ptr<std::mt19937> g;
+    static inline void init_rnd() {
+      static std::random_device rd;
+      g = std::make_unique<std::mt19937>(rd());
+    };
+  public:
+    static inline void init_rnd(long seed) {
+      g = std::make_unique<std::mt19937>(seed);
+    };
+    static inline std::mt19937& get_generator() {
+      if (!g) init_rnd();
+      return *g; };
+};
+
 template<typename Iter, typename RandomGenerator>
 Iter select_randomly(Iter start, Iter end, RandomGenerator& g) {
   std::uniform_int_distribution<> dis(0, std::distance(start, end) - 1);
@@ -90,7 +106,5 @@ Iter select_randomly(Iter start, Iter end, RandomGenerator& g) {
 
 template<typename Iter>
 Iter select_randomly(Iter start, Iter end) {
-  static std::random_device rd;
-  static std::mt19937 gen(rd());
-  return select_randomly(start, end, gen);
+  return select_randomly(start, end, RandomGenerator().get_generator());
 }
