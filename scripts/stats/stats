@@ -1,0 +1,171 @@
+#!/usr/bin/python3
+
+import argparse
+import multiprocessing
+import collections
+import json
+import os
+import queue
+import re
+import resource
+import shlex
+import sqlite3
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+
+DB = 'stats.db'
+STARDIST = './stardist'
+TIMEOUT = 1000
+
+parser = argparse.ArgumentParser(description='run benchmarks')
+parser.add_argument('-d', '--db', metavar='DB', dest='db', default=DB, help='stats database')
+parser.add_argument('-s', '--stardist', metavar='STARDIST', dest='stardist', default=STARDIST, help='stardist binary')
+parser.add_argument('-t', '--threads', metavar='THREADS', dest='threads', type=int, default=multiprocessing.cpu_count(), help='number of threads to start')
+parser.add_argument('extra', metavar='ARG', nargs='*', help='extra arguments to pass to STARDIST')
+args = parser.parse_args()
+
+def eprint(*args):
+    print(*args, file=sys.stderr)
+
+def limit_virtual_memory():
+    # The tuple below is of the form (soft limit, hard limit). Limit only
+    # the soft part so that the limit can be increased later (setting also
+    # the hard limit would prevent that).
+    # When the limit cannot be changed, setrlimit() raises ValueError.
+    MAX_VIRTUAL_MEMORY = 10 * 1024 * 1024 *1024 # 10 GB
+    resource.setrlimit(resource.RLIMIT_AS, (MAX_VIRTUAL_MEMORY, resource.RLIM_INFINITY))
+
+def run_stardist(input_stars, input_sites, stardist):
+    statsfile = tempfile.NamedTemporaryFile(mode='w+')
+    os.set_inheritable(statsfile.fileno(), True)
+
+    cmd = []
+    cmd.append(stardist)
+    cmd.append("--stats-fd=%d"%(statsfile.fileno(),))
+    cmd += args.extra
+    cmd.append(input_stars)
+    cmd.append(input_sites)
+    cmd.append("/dev/null")
+
+    stats = {}
+    stats['cmdline'] = " ".join(shlex.quote(c) for c in cmd)
+    timeout = TIMEOUT
+    try:
+        output = subprocess.run(
+          cmd,
+          close_fds=False,
+          stdin=subprocess.DEVNULL,
+          stdout=subprocess.DEVNULL,
+          stderr=subprocess.PIPE,
+          timeout=timeout,
+          check=True,
+          preexec_fn=limit_virtual_memory)
+    except subprocess.CalledProcessError as e:
+        last_lines = collections.deque(e.stderr.split(b'\n'), 10)
+        stats['exit'] = e.returncode
+        stats['error'] = b'\n'.join(last_lines).decode()
+        return (False, stats)
+    except subprocess.TimeoutExpired as e:
+        stats['timeout'] = timeout
+        return (False, stats)
+
+    stats['exit'] = 0
+    statsfile.seek(0)
+    for line in statsfile:
+        line = line.rstrip()
+        g = re.match('^\[STAR\]\s+(?P<key>\S+)\s+(?P<value>.*)', line)
+        if g is None:
+            eprint("Cannot parse:", line)
+            continue
+        key = g.group('key')
+        value = g.group('value')
+        stats[key] = value
+    return (True, stats)
+
+def run_one(args, input_stars, input_sites):
+    res = {
+      'input_stars': input_stars,
+      'input_sites': input_sites,
+      'version': None,
+      'size': None,
+      'exit': None,
+      'runtime': None,
+      'memuse': None,
+      'error': None,
+      'timeout': None,
+      'data': None,
+      }
+
+    (success, data) = run_stardist(input_stars, input_sites, args.stardist)
+    res['timeout'] = data.get('timeout')
+    res['exit'] = data.get('exit')
+    res['error'] = data.get('error')
+    res['runtime'] = data.get('CPUTIME_VD_DONE').split()[2]
+    res['memuse'] = data.get('MAXRSS')
+    res['size'] = data.get('SIZE')
+    res['version'] = data.get('VERSION')
+    res['data'] = json.dumps(data)
+    return res
+
+def handle_one(args, q, dbq):
+  conn = sqlite3.connect(args.db)
+  cur = conn.cursor()
+  while True:
+    (stars,sites) = q.get()
+    print(stars, sites)
+    cur.execute('SELECT count(*) AS count FROM run where input_sites = :input_sites and input_stars = :input_stars', {'input_sites': sites, 'input_stars': stars})
+    row = cur.fetchall()
+    if row[0][0] > 0:
+      print("Already handled.")
+    else:
+      res = run_one(args, stars, sites)
+      print(res)
+      dbq.put(res)
+    q.task_done()
+
+def db_writer(db, dbq):
+  conn = sqlite3.connect(db)
+  cur = conn.cursor()
+  while True:
+      res = dbq.get()
+      cur.execute("""
+         INSERT INTO run (input_stars, input_sites, version, size, exit, runtime, error, timeout, memuse, data)
+           VALUES (:input_stars, :input_sites, :version, :size, :exit, :runtime, :error, :timeout, :memuse, :data)
+        """, res)
+      conn.commit()
+      dbq.task_done()
+
+if not os.path.exists(args.db):
+  eprint("DB file", args.db, "does not exist.  Run gen-db.")
+  sys.exit(1)
+if not os.path.exists(args.stardist):
+  eprint("Stardist binary", args.stardist, "does not exist.")
+  sys.exit(1)
+
+dbq = queue.Queue(maxsize = args.threads * 2)
+dbworker = threading.Thread(target=db_writer, args=(args.db, dbq))
+dbworker.setDaemon(True)
+dbworker.start()
+
+q = queue.Queue(maxsize = args.threads * 2)
+for _ in range(args.threads):
+  worker = threading.Thread(target=handle_one, args=(args, q, dbq))
+  worker.setDaemon(True)
+  worker.start()
+
+for line in sys.stdin:
+  try:
+    (stars, sites) = line.split(None, 1);
+  except ValueError:
+    eprint("Invalid input (cannot split into parts):", line)
+    continue
+
+  stars = stars.strip()
+  sites = sites.strip()
+  q.put( (stars, sites) )
+
+q.join()
+dbq.join()
