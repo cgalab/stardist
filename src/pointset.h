@@ -108,10 +108,11 @@ class Input {
     StarSet _stars;
     SiteSet _sites;
     StagesPtr _stages;
+    StatsPtr _stats;
 
     void preprocess();
   public:
-    Input(const std::string &stars_fn, const std::string &sites_fn, double random_scale_sigma, SiteFormat site_fmt, StagesPtr stages);
+    Input(const std::string &stars_fn, const std::string &sites_fn, double random_scale_sigma, SiteFormat site_fmt, StagesPtr stages, StatsPtr stats);
     bool do_sk(std::ostream &os, std::string skoffset) const;
     bool do_vd(std::ostream &os, const RatNT& max_time, std::string skoffset) const;
     const SiteSet& sites() const { return _sites; };

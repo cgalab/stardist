@@ -788,8 +788,9 @@ make_triangles() const { //{{{
 
 // Input {{{
 Input::
-Input(const std::string &stars_fn, const std::string &sites_fn, double random_scale, SiteFormat site_fmt, StagesPtr stages) :
-  _stages(stages)
+Input(const std::string &stars_fn, const std::string &sites_fn, double random_scale, SiteFormat site_fmt, StagesPtr stages, StatsPtr stats)
+  : _stages(stages)
+  , _stats(stats)
 { //{{{
 
   if (std::filesystem::is_directory(stars_fn)) {
@@ -889,6 +890,13 @@ do_vd(std::ostream &os, const RatNT& max_time, std::string skoffset) const { //{
 
   IpeWriter().write_vd(os, vd, _sites, skoffset);
   _stages->push_back( { "output", 2, clock() } );
+
+  if (_stats) {
+    const Envelope_diagram_2& diag = vd.arr();
+    *_stats << "OUT_NUM_VERTICES " << diag.number_of_vertices() << std::endl;
+    *_stats << "OUT_NUM_EDGES    " << diag.number_of_edges() << std::endl;
+    *_stats << "OUT_NUM_FACES    " << diag.number_of_faces() << std::endl;
+  }
 
   return vd.is_valid();
 } //}}}

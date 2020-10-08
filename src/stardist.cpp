@@ -21,6 +21,8 @@
 #include <boost/iostreams/device/file_descriptor.hpp>
 #include <boost/iostreams/stream.hpp>
 
+#include <sys/resource.h>
+
 static const char* short_options = "hv";
 static struct option long_options[] = {
   { "help"               , no_argument        , 0, 'h'},
@@ -201,23 +203,37 @@ main(int argc, char *argv[]) {
 
   bool success;
   StagesPtr stages = std::make_shared<StagesList>();
+  StatsPtr extra_stats = (stats_fd >= 0) ? std::make_shared<std::stringstream>() : NULL;
+
   stages->push_back( { "START", 0, clock() } );
 
-  Input input(stars_fn, sites_fn, random_scale_sigma, site_fmt, stages);
+  Input input(stars_fn, sites_fn, random_scale_sigma, site_fmt, stages, extra_stats);
   if (make_vd) {
     success = input.do_vd(*out, vd_height, skoffset);
   } else {
     success = input.do_sk(*out, skoffset);
   }
-  stages->push_back( { "DONE", 0, clock() } );
+  stages->push_back( { "END", 0, clock() } );
   out->flush();
 
   if (stats_fd >= 0) {
     boost::iostreams::file_descriptor_sink snk{stats_fd, boost::iostreams::never_close_handle};
     boost::iostreams::stream< boost::iostreams::file_descriptor_sink> stats_os{snk};
     stats_os << std::setprecision(10);
-    stats_os << "[STAR] NUM_SITES " << input.sites().size() << std::endl;
-    stats_os << "[STAR] SIZE " << input.sites().total_size() << std::endl;
+
+    struct rusage usage;
+    if (getrusage(RUSAGE_SELF, &usage) < 0) {
+      LOG(ERROR) << "getrusage() failed: " << strerror(errno);
+      exit(1);
+    }
+    stats_os << "[STAR] MAXRSS           " << usage.ru_maxrss << std::endl;
+    stats_os << "[STAR] NUM_SITES        " << input.sites().size() << std::endl;
+    stats_os << "[STAR] SIZE             " << input.sites().total_size() << std::endl;
+
+    std::string line;
+    while (std::getline(*extra_stats, line)) {
+      stats_os << "[STAR] " << line << std::endl;
+    }
 
     std::vector<clock_t> clocks;
     clocks.push_back(stages->front().clock);
