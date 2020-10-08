@@ -221,6 +221,11 @@ main(int argc, char *argv[]) {
     boost::iostreams::stream< boost::iostreams::file_descriptor_sink> stats_os{snk};
     stats_os << std::setprecision(10);
 
+    stats_os << "[STAR] VERSION          "  << GITVERSION;
+    stats_os << "-" CMAKE_BUILD_TYPE;
+    stats_os << std::endl;
+
+
     struct rusage usage;
     if (getrusage(RUSAGE_SELF, &usage) < 0) {
       LOG(ERROR) << "getrusage() failed: " << strerror(errno);
