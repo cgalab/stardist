@@ -69,6 +69,7 @@ write_header(std::ostream& os) { //{{{
         "      0.6 0 0 0.6 0 0 e\n"
         "    </path>\n"
         "  </symbol>\n"
+        "  <opacity name=\"75%\" value=\"0.75\"/>\n"
         "</ipestyle>\n"
         "<ipestyle name=\"dashstyles\">\n"
         "  <dashstyle name=\"dotted-narrower\" value=\"[0.5 0.5] 0\"/>\n"
@@ -127,33 +128,35 @@ IpeWriter::write_vd_arrangement_faces(std::ostream& os, const StarVD& vd) { //{{
     if (visited.count(eit)) continue;
 
     Face_const_handle face = eit->face();
-    if (face->number_of_surfaces() == 0) continue;  // outer face or not yet reached if we did not finish.
-    assert(face->number_of_surfaces() == 1);
-    auto& surface = face->surface();
+    /* This face can be supported out by 0, 1, or more surfaces.
+     * 0 if this is the outer face or area not (yet at this height) reached by triangles,
+     * 2 or more if more than one triangle supports this face, i.e. if the triangles intersection is two dimensional.
+     */
+    for (auto surface = face->surfaces_begin(); surface != face->surfaces_end(); ++surface) {
+      int site_idx = surface->data().first;
+      std::vector<RatPoint_2> face_pts;
 
-    int site_idx = surface.data().first;
-    std::vector<RatPoint_2> face_pts;
+      Halfedge_const_iterator around_face_it = eit;
+      do {
+        visited.insert(around_face_it);
+        face_pts.push_back(around_face_it->target()->point());
 
-    Halfedge_const_iterator around_face_it = eit;
-    do {
-      visited.insert(around_face_it);
-      face_pts.push_back(around_face_it->target()->point());
+        // we could skip over internal edges, but this way
+        // the internal partition is also visible in IPE,
+        // which I like
+        around_face_it = around_face_it->next();
+      } while (around_face_it != eit);
 
-      // we could skip over internal edges, but this way
-      // the internal partition is also visible in IPE,
-      // which I like
-      around_face_it = around_face_it->next();
-    } while (around_face_it != eit);
+      auto regions_it = regions.find(site_idx);
+      if (regions_it == regions.end()) {
+        std::vector< std::vector< RatPoint_2 >> faces;
+        faces.emplace_back(face_pts);
 
-    auto regions_it = regions.find(site_idx);
-    if (regions_it == regions.end()) {
-      std::vector< std::vector< RatPoint_2 >> faces;
-      faces.emplace_back(face_pts);
-
-      [[maybe_unused]] auto [_, success] = regions.emplace( std::make_pair(site_idx, faces) );
-      assert(success);
-    } else {
-      regions_it->second.emplace_back(face_pts);
+        [[maybe_unused]] auto [_, success] = regions.emplace( std::make_pair(site_idx, faces) );
+        assert(success);
+      } else {
+        regions_it->second.emplace_back(face_pts);
+      }
     }
   }
 
@@ -164,7 +167,7 @@ IpeWriter::write_vd_arrangement_faces(std::ostream& os, const StarVD& vd) { //{{
     stroke << "layer=\"faces\" fill=\""
            << dist(generator) << " "
            << dist(generator) << " "
-           << dist(generator) << "\"";
+           << dist(generator) << "\" opacity=\"75%\"";
     write_polygons(os, r.second, stroke.str());
   }
 
