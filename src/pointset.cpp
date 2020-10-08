@@ -838,7 +838,7 @@ Input(const std::string &stars_fn, const std::string &sites_fn, double random_sc
       LOG(ERROR) << "Unexpected site_fmt.";
       exit(1);
   };
-  _stages->push_back({"PARSING", clock()});
+  _stages->push_back({"PARSING", 1, clock()});
 
   preprocess();
 } //}}}
@@ -851,7 +851,7 @@ preprocess() { //{{{
    */
   RatNT min_site_dist = _sites.get_closest_distance_squared();
   RatNT max_star_size = _stars.get_max_vertex_distance_squared();
-  _stages->push_back({"prepreprocessing", clock()});
+  _stages->push_back({"prepreprocessing", 2, clock()});
 
   LOG(INFO) << "min site dist (squared) " << min_site_dist;
   LOG(INFO) << "max star size (squared) " << max_star_size;
@@ -865,7 +865,8 @@ preprocess() { //{{{
   }
   LOG(INFO) << "scaling stars by a factor of " << scale;
   _stars.scale(scale);
-  _stages->push_back({"PREPROCESSING", clock()});
+  _stages->push_back({"scaling", 2, clock()});
+  _stages->push_back({"PREPROCESSING", 1, clock()});
 } //}}}
 
 bool
@@ -887,7 +888,7 @@ do_vd(std::ostream &os, const RatNT& max_time, std::string skoffset) const { //{
   StarVD vd(_sites, _stars, max_time, _stages);
 
   IpeWriter().write_vd(os, vd, _sites, skoffset);
-  _stages->push_back( { "output", clock() } );
+  _stages->push_back( { "output", 2, clock() } );
 
   return vd.is_valid();
 } //}}}

@@ -67,7 +67,18 @@ Rat2Core(const RatPoint_2& p) {
   return CorePoint_2(p.x(), p.y());
 }
 
-using StagesList = std::vector< std::pair<std::string, clock_t> >;
+class Stage {
+  public:
+    std::string label;
+    unsigned level;
+    clock_t clock;
+ // inline Stage(const std::string& label_, unsigned level_, const clock_t& clock_)
+ //   : label(label_)
+ //   , level(level_)
+ //   , clock(clock_)
+ //   {};
+};
+using StagesList = std::vector< Stage >;
 using StagesPtr = std::shared_ptr< StagesList >;
 
 enum class SiteFormat { guess, ipe, line, pnt };

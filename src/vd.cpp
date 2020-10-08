@@ -267,27 +267,28 @@ StarVD(const SiteSet& sites, const StarSet& stars, const RatNT& max_time, Stages
   : _max_time(max_time)
   , stages(stages_p)
 {
-  stages->push_back( { "VD_START", clock() } );
+  stages->push_back( { "VD_START", 1, clock() } );
   if (_max_time == 0) {
     _max_time = guess_upper_bound(sites, stars);
-    stages->push_back( { "guess_upper", clock() } );
+    stages->push_back( { "guess_upper", 3, clock() } );
     _max_time = std::max(_max_time, find_last_pierce_event(sites, stars));
     LOG(INFO) << "Using time upper-bound (estimate) of " << CGAL::to_double(_max_time);
-    stages->push_back( { "find_pierce", clock() } );
+    stages->push_back( { "find_pierce", 3, clock() } );
   };
-  stages->push_back( { "VD_PREP_DONE", clock() } );
+  stages->push_back( { "VD_PREP_DONE", 2, clock() } );
 
   LOG(DEBUG) << " preparing triangles";
   _triangles = sites.make_vd_input(_max_time);
-    stages->push_back( { "prepare_triangles", clock() } );
+    stages->push_back( { "setup_triangles", 3, clock() } );
   LOG(DEBUG) << " computing lower envelope";
   CGAL::lower_envelope_3 (_triangles.begin(), _triangles.end(), _arr);
-  stages->push_back( { "make_envelope", clock() } );
-  stages->push_back( { "VD_VD_DONE", clock() } );
+  stages->push_back( { "make_envelope", 3, clock() } );
+  stages->push_back( { "VD_VD_DONE", 2, clock() } );
+  stages->push_back( { "VD_DONE", 1, clock() } );
 
   LOG(DEBUG) << " verifying";
   _is_valid = check_sufficiently_far_approximately();
-  stages->push_back( { "verify", clock() } );
+  stages->push_back( { "verify", 2, clock() } );
   if (!_is_valid) {
     LOG(WARNING) << "  Triangles too small with height " << CGAL::to_double(_max_time) << ".";
   } else {

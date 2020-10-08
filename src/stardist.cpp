@@ -201,7 +201,7 @@ main(int argc, char *argv[]) {
 
   bool success;
   StagesPtr stages = std::make_shared<StagesList>();
-  stages->push_back( { "start", clock() } );
+  stages->push_back( { "START", 0, clock() } );
 
   Input input(stars_fn, sites_fn, random_scale_sigma, site_fmt, stages);
   if (make_vd) {
@@ -209,6 +209,7 @@ main(int argc, char *argv[]) {
   } else {
     success = input.do_sk(*out, skoffset);
   }
+  stages->push_back( { "DONE", 0, clock() } );
   out->flush();
 
   if (stats_fd >= 0) {
@@ -218,15 +219,29 @@ main(int argc, char *argv[]) {
     stats_os << "[STAR] NUM_SITES " << input.sites().size() << std::endl;
     stats_os << "[STAR] SIZE " << input.sites().total_size() << std::endl;
 
-    clock_t first, prev;
-    first = prev = (*stages)[0].second;
-    auto it = stages->begin();
-    while ((++it) != stages->end()) {
-      stats_os << "[STAR] CPUTIME_" << std::setw(30) << std::left << it->first;
-      stats_os << " " << std::fixed
-        << ((double) (it->second - first))/CLOCKS_PER_SEC << " "
-        << ((double) (it->second - prev ))/CLOCKS_PER_SEC << std::endl;
-      prev = it->second;
+    std::vector<clock_t> clocks;
+    clocks.push_back(stages->front().clock);
+
+    for (const auto& stage : *stages) {
+      while (clocks.size() <= stage.level) {
+        clocks.push_back(clocks.back());
+      }
+      while (clocks.size() > stage.level+1) {
+        clocks.pop_back();
+      }
+      //LOG(INFO) << "l: " << stage.level << "; s: " << clocks.size();
+      assert(clocks.size() == stage.level + 1);
+
+      stats_os << "[STAR] CPUTIME_" << std::setw(30) << std::left << stage.label;
+      stats_os << std::setw(3) << std::right << stage.level;
+      stats_os << " " << std::fixed << std::setw(14) << ((double) (stage.clock - stages->front().clock))/CLOCKS_PER_SEC << "   ";
+      for (unsigned i=1; i<clocks.size(); ++i){
+        stats_os << " " << std::fixed << std::setw(14) << "";
+      }
+      stats_os << " " << std::fixed << std::setw(14) << ((double) (stage.clock - clocks.back()))/CLOCKS_PER_SEC;
+      stats_os << std::endl;
+
+      clocks.back() = stage.clock;
     }
 
     stats_os.flush();
