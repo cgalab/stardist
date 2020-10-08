@@ -528,7 +528,7 @@ load_lines_from_dir(const std::string& dir) { //{{{
     }
 
     Star star(f, ent.path());
-    auto [_, success ] = insert( {ent.path().stem(), star} );
+    [[maybe_unused]] auto [_, success ] = insert( {ent.path().stem(), star} );
     assert(success);
 
     loaded_at_least_one = true;
