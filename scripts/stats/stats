@@ -1,14 +1,16 @@
 #!/usr/bin/python3
 
 import argparse
-import multiprocessing
 import collections
+import getpass
 import json
+import multiprocessing
 import os
 import queue
 import re
 import resource
 import shlex
+import socket
 import sqlite3
 import subprocess
 import sys
@@ -108,6 +110,7 @@ def run_one(args, input_stars, input_sites):
     res['size'] = data.get('SIZE')
     res['version'] = data.get('VERSION')
     res['data'] = json.dumps(data)
+    res['user'] = '%s@%s'%(getpass.getuser(), socket.gethostname())
     return res
 
 def handle_one(args, q, dbq):
@@ -132,8 +135,8 @@ def db_writer(db, dbq):
   while True:
       res = dbq.get()
       cur.execute("""
-         INSERT INTO run (input_stars, input_sites, version, size, exit, runtime, error, timeout, memuse, data)
-           VALUES (:input_stars, :input_sites, :version, :size, :exit, :runtime, :error, :timeout, :memuse, :data)
+         INSERT INTO run (input_stars, input_sites, version, size, exit, runtime, error, timeout, memuse, user, data)
+           VALUES (:input_stars, :input_sites, :version, :size, :exit, :runtime, :error, :timeout, :memuse, :user, :data)
         """, res)
       conn.commit()
       dbq.task_done()

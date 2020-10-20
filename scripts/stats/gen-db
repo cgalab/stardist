@@ -25,6 +25,7 @@ CREATE TABLE run (
   runtime DOUBLE,
   memuse INTEGER,
   error TEXT,
+  user TEXT,
   data TEXT, -- json data
 
   UNIQUE(input_sites, input_stars)
