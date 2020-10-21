@@ -873,11 +873,17 @@ preprocess() { //{{{
 bool
 Input::
 do_sk(std::ostream &os, std::string skoffset) const { //{{{
+  _stages->push_back( { "SK_START", 1, clock() } );
   SkeletonStructure s( _sites.make_surf_input() );
+  _stages->push_back( { "SK_SETUP", 2, clock() } );
 
   s.initialize(0 /* restrict component */);
+  _stages->push_back( { "SK_INIT", 2, clock() } );
   s.wp.advance_to_end();
+  _stages->push_back( { "SK_PROPAGATION", 2, clock() } );
+  _stages->push_back( { "SK_DONE", 1, clock() } );
 
+  _stages->push_back( { "output", 2, clock() } );
   const SkeletonDCEL &sk = s.get_skeleton();
   IpeWriter().write_skeleton(os, sk, _sites, skoffset);
   return true;

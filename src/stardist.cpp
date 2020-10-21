@@ -243,6 +243,7 @@ main(int argc, char *argv[]) {
     std::vector<clock_t> clocks;
     clocks.push_back(stages->front().clock);
 
+    unsigned i=1;
     for (const auto& stage : *stages) {
       while (clocks.size() <= stage.level) {
         clocks.push_back(clocks.back());
@@ -254,7 +255,7 @@ main(int argc, char *argv[]) {
       assert(clocks.size() == stage.level + 1);
 
       stats_os << "[STAR] CPUTIME_" << std::setw(30) << std::left << stage.label;
-      stats_os << std::setw(3) << std::right << stage.level;
+      stats_os << std::setw(3) << std::right << i++ << "  " << stage.level;
       stats_os << " " << std::fixed << std::setw(14) << ((double) (stage.clock - stages->front().clock))/CLOCKS_PER_SEC << "   ";
       for (unsigned i=1; i<clocks.size(); ++i){
         stats_os << " " << std::fixed << std::setw(14) << "";
