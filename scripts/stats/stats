@@ -105,7 +105,7 @@ def run_one(args, input_stars, input_sites):
     res['timeout'] = data.get('timeout')
     res['exit'] = data.get('exit')
     res['error'] = data.get('error')
-    res['runtime'] = data.get('CPUTIME_VD_DONE').split()[2]
+    res['runtime'] = data.get('CPUTIME_VD_DONE').split()[-1] if 'CPUTIME_VD_DONE' in res else None
     res['memuse'] = data.get('MAXRSS')
     res['size'] = data.get('SIZE')
     res['version'] = data.get('VERSION')
