@@ -69,6 +69,7 @@ check_sufficiently_far_approximately() { //{{{
   Inner_ccb_iterator holes_it = unbounded_face->holes_begin();
   assert(holes_it != unbounded_face->holes_end());
 
+  Ccb_halfedge_const_circulator initial_ccb = *holes_it;
   Ccb_halfedge_const_circulator ccb = *holes_it;
   do {
     const Vertex_const_handle& vertex = ccb->target();
@@ -96,7 +97,7 @@ check_sufficiently_far_approximately() { //{{{
     assert(found_interior_arc);
 
     ++ccb;
-  } while (ccb != *holes_it);
+  } while (ccb != initial_ccb);
   assert((++holes_it) == unbounded_face->holes_end());
 
   bool arcs_colliding = false;
