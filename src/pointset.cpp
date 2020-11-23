@@ -512,7 +512,7 @@ load_from_ipe(std::istream& ins) { //{{{
 //}}}
 void
 StarSet::
-load_lines_from_dir(const std::string& dir) { //{{{
+load_stars_from_dir(const std::string& dir, StarFormat star_fmt) { //{{{
   bool loaded_at_least_one = false;
   for (const auto& ent : std::filesystem::directory_iterator(dir)) {
     if (ent.path().extension() != ".line") {
@@ -537,6 +537,45 @@ load_lines_from_dir(const std::string& dir) { //{{{
   if (! loaded_at_least_one) {
     LOG(ERROR) << "No stars loaded from " << dir;
     exit(1);
+  };
+}
+//}}}
+void
+StarSet::
+load_stars_from_file(const std::string& fn, StarFormat star_fmt, bool accept_stdio) { //{{{
+  std::filesystem::path p(fn);
+  if (star_fmt == StarFormat::guess) {
+    if (p.extension() == ".line") star_fmt = StarFormat::line;
+    else star_fmt = StarFormat::ipe;
+  }
+
+  std::istream *stars_ins;
+  std::ifstream stars_streamin;
+  if (fn == "-" && accept_stdio) {
+    stars_ins = &std::cin;
+  } else {
+    stars_streamin.open(p);
+    if (!stars_streamin.is_open()) {
+      LOG(ERROR) << "Cannot open " << p;
+      exit(1);
+    }
+    stars_ins = &stars_streamin;
+  }
+
+  switch (star_fmt) {
+    case StarFormat::line: {
+        Star star(stars_streamin, p);
+        [[maybe_unused]] auto [_, success ] = insert( {p.stem(), star} );
+        assert(success);
+      }
+      break;
+    case StarFormat::ipe:
+      load_from_ipe(*stars_ins);
+      break;
+    case StarFormat::guess:
+    default:
+      LOG(ERROR) << "Unexpected star_fmt.";
+      exit(1);
   };
 }
 //}}}
@@ -788,23 +827,15 @@ make_triangles() const { //{{{
 
 // Input {{{
 Input::
-Input(const std::string &stars_fn, const std::string &sites_fn, double random_scale, SiteFormat site_fmt, StagesPtr stages, StatsPtr stats)
+Input(const std::string &stars_fn, const std::string &sites_fn, double random_scale, StarFormat star_fmt, SiteFormat site_fmt, StagesPtr stages, StatsPtr stats)
   : _stages(stages)
   , _stats(stats)
 { //{{{
 
   if (std::filesystem::is_directory(stars_fn)) {
-    _stars.load_lines_from_dir(stars_fn);
+    _stars.load_stars_from_dir(stars_fn, star_fmt);
   } else {
-    std::istream *stars_ins;
-    std::ifstream stars_streamin;
-    if (stars_fn == "-") {
-      stars_ins = &std::cin;
-    } else {
-      stars_streamin.open(stars_fn);
-      stars_ins = &stars_streamin;
-    }
-    _stars.load_from_ipe(*stars_ins);
+    _stars.load_stars_from_file(stars_fn, star_fmt, true);
   }
   _stars.scale_random(random_scale);
 
@@ -821,6 +852,10 @@ Input(const std::string &stars_fn, const std::string &sites_fn, double random_sc
     sites_ins = &std::cin;
   } else {
     sites_streamin.open(sites_fn);
+    if (!sites_streamin.is_open()) {
+      LOG(ERROR) << "Cannot open " << sites_fn;
+      exit(1);
+    }
     sites_ins = &sites_streamin;
   }
 

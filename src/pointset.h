@@ -42,7 +42,8 @@ class StarSet : private std::unordered_map<std::string, Star> {
     using It = Base::const_iterator;
 
     void load_from_ipe(std::istream& ins);
-    void load_lines_from_dir(const std::string& dir);
+    void load_stars_from_dir(const std::string& dir, StarFormat star_fmt);
+    void load_stars_from_file(const std::string& fn, StarFormat star_fmt, bool accept_stdio);
 
     using Base::find;
     using Base::begin;
@@ -112,7 +113,7 @@ class Input {
 
     void preprocess();
   public:
-    Input(const std::string &stars_fn, const std::string &sites_fn, double random_scale_sigma, SiteFormat site_fmt, StagesPtr stages, StatsPtr stats);
+    Input(const std::string &stars_fn, const std::string &sites_fn, double random_scale_sigma, StarFormat star_fmt, SiteFormat site_fmt, StagesPtr stages, StatsPtr stats);
     bool do_sk(std::ostream &os, std::string skoffset) const;
     bool do_vd(std::ostream &os, const RatNT& max_time, std::string skoffset) const;
     const SiteSet& sites() const { return _sites; };

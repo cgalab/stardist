@@ -83,6 +83,7 @@ using StagesPtr = std::shared_ptr< StagesList >;
 using StatsPtr = std::shared_ptr< std::stringstream >;
 
 enum class SiteFormat { guess, ipe, line, pnt };
+enum class StarFormat { guess, ipe, line };
 
 
 

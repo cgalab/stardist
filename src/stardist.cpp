@@ -32,6 +32,7 @@ static struct option long_options[] = {
   { "vd-height"          , required_argument  , 0, 'H'},
   { "stats-fd"           , required_argument  , 0, 'S'},
   { "site-format"        , required_argument  , 0, 'F'},
+  { "star-format"        , required_argument  , 0, '1'},
   { "random-scale"       , required_argument  , 0, 'R'},
   { "random-seed"        , required_argument  , 0, 'X'},
   { 0, 0, 0, 0}
@@ -61,6 +62,7 @@ usage(const char *progname, int err) {
   fprintf(f,"           --vd-height=<HEIGHT>       Extend upwards surfaces up to HEIGHT.\n");
   fprintf(f,"           --stats-fd=<FD>            Enable and print statistics to FD.\n");
   fprintf(f,"           --site-format=(GUESS|IPE|LINE|PNT) site(pointset) format.\n");
+  fprintf(f,"           --star-format=(GUESS|IPE|LINE) star format.\n");
   fprintf(f,"           --random-scale=sigma       Scale stars by e^X where X is a random number from N(0,sigma)\n");
   fprintf(f,"\n");
   fprintf(f,"        STARSET  .ipe file -- stars are polygons with their center as an IPE marker\n");
@@ -83,6 +85,7 @@ main(int argc, char *argv[]) {
   RatNT vd_height = 0;
   int stats_fd = -1;
   SiteFormat site_fmt = SiteFormat::guess;
+  StarFormat star_fmt = StarFormat::guess;
   double random_scale_sigma = 0;
 
   while (1) {
@@ -145,6 +148,19 @@ main(int argc, char *argv[]) {
         }
         break;
 
+      case '1':
+        {
+          std::string fmt(optarg);
+          if (fmt == "GUESS") star_fmt = StarFormat::guess;
+          else if (fmt == "IPE") star_fmt = StarFormat::ipe;
+          else if (fmt == "LINE") star_fmt = StarFormat::line;
+          else {
+            std::cerr << "Invalid star format " << fmt << std::endl;
+            exit(1);
+          }
+        }
+        break;
+
       case 'R':
         {
           char *end_ptr;
@@ -197,6 +213,10 @@ main(int argc, char *argv[]) {
     std::string fn(argv[optind + 2]);
     if (fn != "-") {
       filestreamout.open(fn);
+      if (!filestreamout.is_open()) {
+        LOG(ERROR) << "Cannot open " << fn;
+        exit(1);
+      }
       out = &filestreamout;
     }
   }
@@ -207,7 +227,7 @@ main(int argc, char *argv[]) {
 
   stages->push_back( { "START", 0, clock() } );
 
-  Input input(stars_fn, sites_fn, random_scale_sigma, site_fmt, stages, extra_stats);
+  Input input(stars_fn, sites_fn, random_scale_sigma, star_fmt, site_fmt, stages, extra_stats);
   if (make_vd) {
     success = input.do_vd(*out, vd_height, skoffset);
   } else {
